@@ -571,14 +571,19 @@ public class InvoiceDialog extends JDialog {
                     "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            
+
             if (itemsTableModel.getRowCount() == 0) {
                 JOptionPane.showMessageDialog(this,
                     "Please add at least one product to the invoice",
                     "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            
+
+            // Check stock availability before saving
+            if (!checkStockAvailability()) {
+                return;
+            }
+
             Date dataFattura;
             try {
                 dataFattura = dateFormat.parse(dataField.getText());
@@ -637,12 +642,15 @@ public class InvoiceDialog extends JDialog {
                             }
                         }
                     }
-                    
+
                     insertInvoiceDetails(conn, invoiceId);
-                    
+
+                    // Update product quantities and create warehouse movements
+                    updateProductStockAndMovements(conn, invoiceId, dataFattura);
+
                 } else {
                     String invoiceQuery = """
-                        UPDATE fatture 
+                        UPDATE fatture
                         SET data = ?, cliente_id = ?, imponibile = ?, iva = ?, totale = ?, stato = ?
                         WHERE id = ?
                     """;
@@ -656,14 +664,20 @@ public class InvoiceDialog extends JDialog {
                         pstmt.setInt(7, invoice.getId());
                         pstmt.executeUpdate();
                     }
-                    
+
+                    // Restore previous stock quantities before deleting old details
+                    restorePreviousStock(conn, invoice.getId());
+
                     String deleteDetailsQuery = "DELETE FROM dettagli_fattura WHERE fattura_id = ?";
                     try (PreparedStatement pstmt = conn.prepareStatement(deleteDetailsQuery)) {
                         pstmt.setInt(1, invoice.getId());
                         pstmt.executeUpdate();
                     }
-                    
+
                     insertInvoiceDetails(conn, invoice.getId());
+
+                    // Update product quantities and create warehouse movements with new data
+                    updateProductStockAndMovements(conn, invoice.getId(), dataFattura);
                 }
                 
                 conn.commit();
@@ -718,7 +732,163 @@ public class InvoiceDialog extends JDialog {
             }
         }
     }
-    
+
+    /**
+     * Check if there is sufficient stock for all products in the invoice
+     */
+    private boolean checkStockAvailability() {
+        try {
+            Connection conn = DatabaseManager.getInstance().getConnection();
+            StringBuilder insufficientProducts = new StringBuilder();
+
+            for (int i = 0; i < itemsTableModel.getRowCount(); i++) {
+                String codice = (String)itemsTableModel.getValueAt(i, 0);
+                String productName = (String)itemsTableModel.getValueAt(i, 1);
+                int requestedQty = parseInteger(itemsTableModel.getValueAt(i, 2));
+
+                // Find product ID by code
+                int productId = -1;
+                for (Product p : productsCache.values()) {
+                    if (p.getCodice().equals(codice)) {
+                        productId = p.getId();
+                        break;
+                    }
+                }
+                if (productId == -1) continue;
+
+                // Get current stock from database
+                String query = "SELECT quantita FROM prodotti WHERE id = ?";
+                try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                    pstmt.setInt(1, productId);
+                    ResultSet rs = pstmt.executeQuery();
+                    if (rs.next()) {
+                        int currentStock = rs.getInt("quantita");
+
+                        // If editing existing invoice, add back the old quantity for this product
+                        if (invoice != null) {
+                            int oldQty = getOldProductQuantity(conn, invoice.getId(), productId);
+                            currentStock += oldQty;
+                        }
+
+                        if (requestedQty > currentStock) {
+                            insufficientProducts.append(String.format(
+                                "- %s: Available %d, Requested %d\n",
+                                productName, currentStock, requestedQty));
+                        }
+                    }
+                }
+            }
+
+            if (insufficientProducts.length() > 0) {
+                int choice = JOptionPane.showConfirmDialog(this,
+                    "Insufficient stock for the following products:\n\n" +
+                    insufficientProducts.toString() + "\n" +
+                    "Do you want to proceed anyway?\n" +
+                    "This will result in negative stock.",
+                    "Insufficient Stock",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+
+                return choice == JOptionPane.YES_OPTION;
+            }
+
+            return true;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                "Error checking stock availability: " + e.getMessage(),
+                "Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+    }
+
+    /**
+     * Get the old quantity of a product in an existing invoice
+     */
+    private int getOldProductQuantity(Connection conn, int invoiceId, int productId) throws SQLException {
+        String query = "SELECT quantita FROM dettagli_fattura WHERE fattura_id = ? AND prodotto_id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setInt(1, invoiceId);
+            pstmt.setInt(2, productId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("quantita");
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Restore stock quantities from a previous invoice (when editing)
+     */
+    private void restorePreviousStock(Connection conn, int invoiceId) throws SQLException {
+        // Get old invoice details and restore stock
+        String query = "SELECT prodotto_id, quantita FROM dettagli_fattura WHERE fattura_id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setInt(1, invoiceId);
+            ResultSet rs = pstmt.executeQuery();
+
+            String updateQuery = "UPDATE prodotti SET quantita = quantita + ? WHERE id = ?";
+            try (PreparedStatement updatePstmt = conn.prepareStatement(updateQuery)) {
+                while (rs.next()) {
+                    int productId = rs.getInt("prodotto_id");
+                    int quantity = rs.getInt("quantita");
+
+                    updatePstmt.setInt(1, quantity);
+                    updatePstmt.setInt(2, productId);
+                    updatePstmt.executeUpdate();
+                }
+            }
+        }
+    }
+
+    /**
+     * Update product stock and create warehouse movements for an invoice
+     */
+    private void updateProductStockAndMovements(Connection conn, int invoiceId, Date invoiceDate) throws SQLException {
+        // Get invoice number for movement reference
+        String invoiceNumber = numeroField.getText();
+
+        for (int i = 0; i < itemsTableModel.getRowCount(); i++) {
+            String codice = (String)itemsTableModel.getValueAt(i, 0);
+            int quantity = parseInteger(itemsTableModel.getValueAt(i, 2));
+
+            // Find product ID by code
+            int productId = -1;
+            for (Product p : productsCache.values()) {
+                if (p.getCodice().equals(codice)) {
+                    productId = p.getId();
+                    break;
+                }
+            }
+            if (productId == -1) continue;
+
+            // Update product quantity (decrease stock)
+            String updateQuery = "UPDATE prodotti SET quantita = quantita - ? WHERE id = ?";
+            try (PreparedStatement pstmt = conn.prepareStatement(updateQuery)) {
+                pstmt.setInt(1, quantity);
+                pstmt.setInt(2, productId);
+                pstmt.executeUpdate();
+            }
+
+            // Create warehouse movement
+            String movementQuery = """
+                INSERT INTO movimenti_magazzino
+                (prodotto_id, data, tipo, quantita, causale, documento_numero, documento_tipo, note)
+                VALUES (?, ?, 'OUTWARD', ?, 'SALE', ?, 'INVOICE', ?)
+            """;
+            try (PreparedStatement pstmt = conn.prepareStatement(movementQuery)) {
+                pstmt.setInt(1, productId);
+                pstmt.setTimestamp(2, new java.sql.Timestamp(invoiceDate.getTime()));
+                pstmt.setInt(3, quantity);
+                pstmt.setString(4, invoiceNumber);
+                pstmt.setString(5, "Invoice " + invoiceNumber);
+                pstmt.executeUpdate();
+            }
+        }
+    }
+
     public boolean isInvoiceSaved() {
         return invoiceSaved;
     }

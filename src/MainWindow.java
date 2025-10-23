@@ -27,15 +27,15 @@ public class MainWindow extends JFrame {
     private String currentPanel = "HOME";
     
     public MainWindow() {
+        // Initialize the database FIRST before any UI setup
+        DatabaseManager.getInstance().initDatabase();
+
         setupWindow();
         setupMenuBar();
         setupToolBar();
         setupMainPanel();
         setupPanels();
-        
-        // Initialize the database
-        DatabaseManager.getInstance().initDatabase();
-        
+
         // Apply global settings on startup
         SettingsPanel.loadGlobalSettings();
         SettingsPanel.applyGlobalSettings();
