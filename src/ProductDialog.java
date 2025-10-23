@@ -49,8 +49,8 @@ public class ProductDialog extends JDialog {
     }
     
     private void setupDialog() {
-        setSize(500, 700);
-        setLocationRelativeTo(getOwner());
+        setSize(650, 700);
+        setLocationRelativeTo(null); // Center on screen instead of parent window
         setLayout(new BorderLayout(10, 10));
     }
     
@@ -58,7 +58,7 @@ public class ProductDialog extends JDialog {
         // Form panel
         JPanel formPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(3, 5, 3, 5); // Reduced vertical spacing for compactness
         gbc.fill = GridBagConstraints.HORIZONTAL;
         
         // Code
@@ -66,33 +66,33 @@ public class ProductDialog extends JDialog {
         formPanel.add(new JLabel("Code:"), gbc);
 
         gbc.gridx = 1;
-        codiceField = new JTextField(15);
+        codiceField = new JTextField(12);
         formPanel.add(codiceField, gbc);
-        
+
         // Name
         gbc.gridx = 0; gbc.gridy = 1;
         formPanel.add(new JLabel("Name:"), gbc);
 
         gbc.gridx = 1;
-        nomeField = new JTextField(15);
+        nomeField = new JTextField(12);
         formPanel.add(nomeField, gbc);
-        
+
         // Description
         gbc.gridx = 0; gbc.gridy = 2;
         formPanel.add(new JLabel("Description:"), gbc);
 
         gbc.gridx = 1;
-        descrizioneArea = new JTextArea(4, 15);
+        descrizioneArea = new JTextArea(3, 12);
         descrizioneArea.setLineWrap(true);
         descrizioneArea.setWrapStyleWord(true);
         formPanel.add(new JScrollPane(descrizioneArea), gbc);
-        
+
         // Price
         gbc.gridx = 0; gbc.gridy = 3;
         formPanel.add(new JLabel("Price:"), gbc);
 
         gbc.gridx = 1;
-        prezzoField = new JTextField(15);
+        prezzoField = new JTextField(12);
         formPanel.add(prezzoField, gbc);
         
         // Quantity
@@ -119,7 +119,7 @@ public class ProductDialog extends JDialog {
         formPanel.add(new JLabel("Alternative SKU:"), gbc);
 
         gbc.gridx = 1;
-        alternativeSkuField = new JTextField(15);
+        alternativeSkuField = new JTextField(12);
         formPanel.add(alternativeSkuField, gbc);
 
         // Weight
@@ -127,7 +127,7 @@ public class ProductDialog extends JDialog {
         formPanel.add(new JLabel("Weight (kg):"), gbc);
 
         gbc.gridx = 1;
-        weightField = new JTextField(15);
+        weightField = new JTextField(12);
         weightField.setText("0.0");
         formPanel.add(weightField, gbc);
 
@@ -155,7 +155,7 @@ public class ProductDialog extends JDialog {
         formPanel.add(new JLabel("Acquisition Cost:"), gbc);
 
         gbc.gridx = 1;
-        acquisitionCostField = new JTextField(15);
+        acquisitionCostField = new JTextField(12);
         acquisitionCostField.setText("0.0");
         formPanel.add(acquisitionCostField, gbc);
 
