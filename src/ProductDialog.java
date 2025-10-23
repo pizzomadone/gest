@@ -18,7 +18,8 @@ public class ProductDialog extends JDialog {
     private JSpinner minimumQuantitySpinner;
     private JTextField acquisitionCostField;
     private JCheckBox activeCheckBox;
-    private JTextField supplierField;
+    private JButton selectSupplierButton;
+    private Supplier selectedSupplier;
 
     private boolean productSaved = false;
     private Product product;
@@ -48,7 +49,7 @@ public class ProductDialog extends JDialog {
     }
     
     private void setupDialog() {
-        setSize(600, 700);
+        setSize(500, 700);
         setLocationRelativeTo(getOwner());
         setLayout(new BorderLayout(10, 10));
     }
@@ -63,25 +64,25 @@ public class ProductDialog extends JDialog {
         // Code
         gbc.gridx = 0; gbc.gridy = 0;
         formPanel.add(new JLabel("Code:"), gbc);
-        
+
         gbc.gridx = 1;
-        codiceField = new JTextField(20);
+        codiceField = new JTextField(15);
         formPanel.add(codiceField, gbc);
         
         // Name
         gbc.gridx = 0; gbc.gridy = 1;
         formPanel.add(new JLabel("Name:"), gbc);
-        
+
         gbc.gridx = 1;
-        nomeField = new JTextField(20);
+        nomeField = new JTextField(15);
         formPanel.add(nomeField, gbc);
         
         // Description
         gbc.gridx = 0; gbc.gridy = 2;
         formPanel.add(new JLabel("Description:"), gbc);
-        
+
         gbc.gridx = 1;
-        descrizioneArea = new JTextArea(4, 20);
+        descrizioneArea = new JTextArea(4, 15);
         descrizioneArea.setLineWrap(true);
         descrizioneArea.setWrapStyleWord(true);
         formPanel.add(new JScrollPane(descrizioneArea), gbc);
@@ -89,9 +90,9 @@ public class ProductDialog extends JDialog {
         // Price
         gbc.gridx = 0; gbc.gridy = 3;
         formPanel.add(new JLabel("Price:"), gbc);
-        
+
         gbc.gridx = 1;
-        prezzoField = new JTextField(20);
+        prezzoField = new JTextField(15);
         formPanel.add(prezzoField, gbc);
         
         // Quantity
@@ -118,7 +119,7 @@ public class ProductDialog extends JDialog {
         formPanel.add(new JLabel("Alternative SKU:"), gbc);
 
         gbc.gridx = 1;
-        alternativeSkuField = new JTextField(20);
+        alternativeSkuField = new JTextField(15);
         formPanel.add(alternativeSkuField, gbc);
 
         // Weight
@@ -126,7 +127,7 @@ public class ProductDialog extends JDialog {
         formPanel.add(new JLabel("Weight (kg):"), gbc);
 
         gbc.gridx = 1;
-        weightField = new JTextField(20);
+        weightField = new JTextField(15);
         weightField.setText("0.0");
         formPanel.add(weightField, gbc);
 
@@ -154,7 +155,7 @@ public class ProductDialog extends JDialog {
         formPanel.add(new JLabel("Acquisition Cost:"), gbc);
 
         gbc.gridx = 1;
-        acquisitionCostField = new JTextField(20);
+        acquisitionCostField = new JTextField(15);
         acquisitionCostField.setText("0.0");
         formPanel.add(acquisitionCostField, gbc);
 
@@ -171,8 +172,16 @@ public class ProductDialog extends JDialog {
         formPanel.add(new JLabel("Supplier:"), gbc);
 
         gbc.gridx = 1;
-        supplierField = new JTextField(20);
-        formPanel.add(supplierField, gbc);
+        selectSupplierButton = new JButton("Click to select supplier...");
+        selectSupplierButton.setPreferredSize(new Dimension(250, 35));
+        selectSupplierButton.setHorizontalAlignment(SwingConstants.LEFT);
+        selectSupplierButton.addActionListener(e -> showSupplierSelectionDialog());
+        formPanel.add(selectSupplierButton, gbc);
+
+        gbc.gridx = 2;
+        JButton newSupplierButton = new JButton("New Supplier");
+        newSupplierButton.addActionListener(e -> createNewSupplier());
+        formPanel.add(newSupplierButton, gbc);
 
         // Button panel
         JPanel buttonPanel = new JPanel();
@@ -205,7 +214,75 @@ public class ProductDialog extends JDialog {
         minimumQuantitySpinner.setValue(product.getMinimumQuantity());
         acquisitionCostField.setText(String.valueOf(product.getAcquisitionCost()));
         activeCheckBox.setSelected(product.isActive());
-        supplierField.setText(product.getSupplier());
+
+        // Load supplier if present
+        String supplierName = product.getSupplier();
+        if (supplierName != null && !supplierName.isEmpty()) {
+            loadSupplierByName(supplierName);
+        }
+    }
+
+    private void loadSupplierByName(String supplierName) {
+        try {
+            Connection conn = DatabaseManager.getInstance().getConnection();
+            String query = "SELECT * FROM fornitori WHERE ragione_sociale = ?";
+            try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                pstmt.setString(1, supplierName);
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    if (rs.next()) {
+                        selectedSupplier = new Supplier(
+                            rs.getInt("id"),
+                            rs.getString("ragione_sociale"),
+                            rs.getString("partita_iva"),
+                            rs.getString("codice_fiscale"),
+                            rs.getString("indirizzo"),
+                            rs.getString("telefono"),
+                            rs.getString("email"),
+                            rs.getString("pec"),
+                            rs.getString("sito_web"),
+                            rs.getString("note")
+                        );
+                        updateSupplierButton();
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            // If supplier not found, just display the name in the button
+            selectSupplierButton.setText(supplierName);
+        }
+    }
+
+    private void showSupplierSelectionDialog() {
+        SupplierSelectionDialog dialog = new SupplierSelectionDialog(this);
+        dialog.setVisible(true);
+
+        if (dialog.isSupplierSelected()) {
+            selectedSupplier = dialog.getSelectedSupplier();
+            updateSupplierButton();
+        }
+    }
+
+    private void updateSupplierButton() {
+        if (selectedSupplier != null) {
+            String buttonText = selectedSupplier.getRagioneSociale();
+
+            if (selectedSupplier.getPartitaIva() != null && !selectedSupplier.getPartitaIva().isEmpty()) {
+                buttonText += " (P.IVA: " + selectedSupplier.getPartitaIva() + ")";
+            }
+
+            selectSupplierButton.setText(buttonText);
+            selectSupplierButton.setToolTipText("Supplier: " + buttonText);
+        }
+    }
+
+    private void createNewSupplier() {
+        SupplierDialog dialog = new SupplierDialog(this, null);
+        dialog.setVisible(true);
+        if (dialog.isSupplierSaved()) {
+            JOptionPane.showMessageDialog(this,
+                "Supplier created successfully. Please select it from the list.",
+                "Success", JOptionPane.INFORMATION_MESSAGE);
+        }
     }
     
     private void saveProduct() {
@@ -225,7 +302,7 @@ public class ProductDialog extends JDialog {
             int minimumQuantity = (int)minimumQuantitySpinner.getValue();
             double acquisitionCost = Double.parseDouble(acquisitionCostField.getText().trim());
             boolean active = activeCheckBox.isSelected();
-            String supplier = supplierField.getText().trim();
+            String supplier = selectedSupplier != null ? selectedSupplier.getRagioneSociale() : "";
 
             if (codice.isEmpty() || nome.isEmpty()) {
                 JOptionPane.showMessageDialog(this,
