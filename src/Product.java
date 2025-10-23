@@ -21,7 +21,8 @@ public class Product {
 
     // Logistics
     private boolean active;
-    private String supplier;
+    private Integer supplierId;
+    private String supplierName; // For display purposes
 
     public Product(int id, String codice, String nome, String descrizione, double prezzo, int quantita) {
         this.id = id;
@@ -37,12 +38,13 @@ public class Product {
         this.minimumQuantity = 0;
         this.acquisitionCost = 0.0;
         this.active = true;
-        this.supplier = "";
+        this.supplierId = null;
+        this.supplierName = "";
     }
 
     public Product(int id, String codice, String nome, String descrizione, double prezzo, int quantita,
                    String category, String alternativeSku, double weight, String unitOfMeasure,
-                   int minimumQuantity, double acquisitionCost, boolean active, String supplier) {
+                   int minimumQuantity, double acquisitionCost, boolean active, Integer supplierId, String supplierName) {
         this.id = id;
         this.codice = codice;
         this.nome = nome;
@@ -56,7 +58,8 @@ public class Product {
         this.minimumQuantity = minimumQuantity;
         this.acquisitionCost = acquisitionCost;
         this.active = active;
-        this.supplier = supplier;
+        this.supplierId = supplierId;
+        this.supplierName = supplierName;
     }
 
     // Getters
@@ -73,7 +76,8 @@ public class Product {
     public int getMinimumQuantity() { return minimumQuantity; }
     public double getAcquisitionCost() { return acquisitionCost; }
     public boolean isActive() { return active; }
-    public String getSupplier() { return supplier; }
+    public Integer getSupplierId() { return supplierId; }
+    public String getSupplierName() { return supplierName; }
 
     // Setters
     public void setId(int id) { this.id = id; }
@@ -89,5 +93,6 @@ public class Product {
     public void setMinimumQuantity(int minimumQuantity) { this.minimumQuantity = minimumQuantity; }
     public void setAcquisitionCost(double acquisitionCost) { this.acquisitionCost = acquisitionCost; }
     public void setActive(boolean active) { this.active = active; }
-    public void setSupplier(String supplier) { this.supplier = supplier; }
+    public void setSupplierId(Integer supplierId) { this.supplierId = supplierId; }
+    public void setSupplierName(String supplierName) { this.supplierName = supplierName; }
 }

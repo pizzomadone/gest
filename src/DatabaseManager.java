@@ -75,7 +75,8 @@ public class DatabaseManager {
                 minimum_quantity INTEGER DEFAULT 0,
                 acquisition_cost REAL DEFAULT 0.0,
                 active INTEGER DEFAULT 1,
-                supplier TEXT DEFAULT ''
+                supplier_id INTEGER,
+                FOREIGN KEY (supplier_id) REFERENCES fornitori (id)
             )
         """;
         
@@ -268,13 +269,13 @@ public class DatabaseManager {
         
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(createClientiTable);
+            stmt.execute(createFornitoriTable); // Create suppliers table first
             stmt.execute(createProdottiTable);
             stmt.execute(createOrdiniTable);
             stmt.execute(createDettagliOrdineTable);
             stmt.execute(createFattureTable);
             stmt.execute(createDettagliFatturaTable);
             stmt.execute(createNumerazioneFattureTable);
-            stmt.execute(createFornitoriTable);
             stmt.execute(createOrdiniFornitoriTable);
             stmt.execute(createDettagliOrdiniFornitoriTable);
             stmt.execute(createListiniFornitoriTable);
@@ -282,6 +283,84 @@ public class DatabaseManager {
             stmt.execute(createScorteMinimaTable);
             stmt.execute(createNotificheMagazzinoTable);
             stmt.execute(createCompanyDataTable);
+        }
+
+        // Migrate existing data from supplier TEXT to supplier_id INTEGER
+        migrateSupplierData();
+    }
+
+    private void migrateSupplierData() throws SQLException {
+        // Check if old 'supplier' column exists (TEXT type)
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery("PRAGMA table_info(prodotti)")) {
+
+            boolean hasOldSupplierColumn = false;
+            boolean hasNewSupplierIdColumn = false;
+
+            while (rs.next()) {
+                String columnName = rs.getString("name");
+                String columnType = rs.getString("type");
+
+                if ("supplier".equals(columnName) && "TEXT".equalsIgnoreCase(columnType)) {
+                    hasOldSupplierColumn = true;
+                } else if ("supplier_id".equals(columnName)) {
+                    hasNewSupplierIdColumn = true;
+                }
+            }
+
+            // If old column exists, we need to migrate
+            if (hasOldSupplierColumn && !hasNewSupplierIdColumn) {
+                System.out.println("Migrating supplier data from TEXT to INTEGER foreign key...");
+
+                // Create temporary table with new schema
+                String createTempTable = """
+                    CREATE TABLE prodotti_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        codice TEXT UNIQUE NOT NULL,
+                        nome TEXT NOT NULL,
+                        descrizione TEXT,
+                        prezzo REAL NOT NULL,
+                        quantita INTEGER DEFAULT 0,
+                        category TEXT DEFAULT '',
+                        alternative_sku TEXT DEFAULT '',
+                        weight REAL DEFAULT 0.0,
+                        unit_of_measure TEXT DEFAULT 'pz',
+                        minimum_quantity INTEGER DEFAULT 0,
+                        acquisition_cost REAL DEFAULT 0.0,
+                        active INTEGER DEFAULT 1,
+                        supplier_id INTEGER,
+                        FOREIGN KEY (supplier_id) REFERENCES fornitori (id)
+                    )
+                """;
+
+                stmt.execute(createTempTable);
+
+                // Copy data and convert supplier names to IDs
+                String copyData = """
+                    INSERT INTO prodotti_new
+                    (id, codice, nome, descrizione, prezzo, quantita, category,
+                     alternative_sku, weight, unit_of_measure, minimum_quantity,
+                     acquisition_cost, active, supplier_id)
+                    SELECT
+                        p.id, p.codice, p.nome, p.descrizione, p.prezzo, p.quantita,
+                        p.category, p.alternative_sku, p.weight, p.unit_of_measure,
+                        p.minimum_quantity, p.acquisition_cost, p.active,
+                        f.id as supplier_id
+                    FROM prodotti p
+                    LEFT JOIN fornitori f ON p.supplier = f.ragione_sociale
+                """;
+
+                stmt.execute(copyData);
+
+                // Drop old table and rename new one
+                stmt.execute("DROP TABLE prodotti");
+                stmt.execute("ALTER TABLE prodotti_new RENAME TO prodotti");
+
+                System.out.println("Supplier data migration completed successfully!");
+            } else if (!hasOldSupplierColumn && !hasNewSupplierIdColumn) {
+                // Brand new database, supplier_id already created correctly
+                System.out.println("New database detected, no migration needed.");
+            }
         }
     }
     

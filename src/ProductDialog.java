@@ -216,18 +216,18 @@ public class ProductDialog extends JDialog {
         activeCheckBox.setSelected(product.isActive());
 
         // Load supplier if present
-        String supplierName = product.getSupplier();
-        if (supplierName != null && !supplierName.isEmpty()) {
-            loadSupplierByName(supplierName);
+        Integer supplierId = product.getSupplierId();
+        if (supplierId != null && supplierId > 0) {
+            loadSupplierById(supplierId);
         }
     }
 
-    private void loadSupplierByName(String supplierName) {
+    private void loadSupplierById(Integer supplierId) {
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
-            String query = "SELECT * FROM fornitori WHERE ragione_sociale = ?";
+            String query = "SELECT * FROM fornitori WHERE id = ?";
             try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                pstmt.setString(1, supplierName);
+                pstmt.setInt(1, supplierId);
                 try (ResultSet rs = pstmt.executeQuery()) {
                     if (rs.next()) {
                         selectedSupplier = new Supplier(
@@ -247,8 +247,8 @@ public class ProductDialog extends JDialog {
                 }
             }
         } catch (SQLException e) {
-            // If supplier not found, just display the name in the button
-            selectSupplierButton.setText(supplierName);
+            // If supplier not found, clear the button
+            selectSupplierButton.setText("Click to select supplier...");
         }
     }
 
@@ -302,7 +302,7 @@ public class ProductDialog extends JDialog {
             int minimumQuantity = (int)minimumQuantitySpinner.getValue();
             double acquisitionCost = Double.parseDouble(acquisitionCostField.getText().trim());
             boolean active = activeCheckBox.isSelected();
-            String supplier = selectedSupplier != null ? selectedSupplier.getRagioneSociale() : "";
+            Integer supplierId = selectedSupplier != null ? selectedSupplier.getId() : null;
 
             if (codice.isEmpty() || nome.isEmpty()) {
                 JOptionPane.showMessageDialog(this,
@@ -316,7 +316,7 @@ public class ProductDialog extends JDialog {
                 String query = """
                     INSERT INTO prodotti (codice, nome, descrizione, prezzo, quantita,
                         category, alternative_sku, weight, unit_of_measure, minimum_quantity,
-                        acquisition_cost, active, supplier)
+                        acquisition_cost, active, supplier_id)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
                 try (PreparedStatement pstmt = conn.prepareStatement(query)) {
@@ -332,7 +332,11 @@ public class ProductDialog extends JDialog {
                     pstmt.setInt(10, minimumQuantity);
                     pstmt.setDouble(11, acquisitionCost);
                     pstmt.setInt(12, active ? 1 : 0);
-                    pstmt.setString(13, supplier);
+                    if (supplierId != null) {
+                        pstmt.setInt(13, supplierId);
+                    } else {
+                        pstmt.setNull(13, java.sql.Types.INTEGER);
+                    }
                     pstmt.executeUpdate();
                 }
             } else { // Edit product
@@ -340,7 +344,7 @@ public class ProductDialog extends JDialog {
                     UPDATE prodotti
                     SET codice = ?, nome = ?, descrizione = ?, prezzo = ?, quantita = ?,
                         category = ?, alternative_sku = ?, weight = ?, unit_of_measure = ?,
-                        minimum_quantity = ?, acquisition_cost = ?, active = ?, supplier = ?
+                        minimum_quantity = ?, acquisition_cost = ?, active = ?, supplier_id = ?
                     WHERE id = ?
                 """;
                 try (PreparedStatement pstmt = conn.prepareStatement(query)) {
@@ -356,7 +360,11 @@ public class ProductDialog extends JDialog {
                     pstmt.setInt(10, minimumQuantity);
                     pstmt.setDouble(11, acquisitionCost);
                     pstmt.setInt(12, active ? 1 : 0);
-                    pstmt.setString(13, supplier);
+                    if (supplierId != null) {
+                        pstmt.setInt(13, supplierId);
+                    } else {
+                        pstmt.setNull(13, java.sql.Types.INTEGER);
+                    }
                     pstmt.setInt(14, product.getId());
                     pstmt.executeUpdate();
                 }

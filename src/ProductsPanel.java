@@ -39,7 +39,7 @@ public class ProductsPanel extends JPanel {
         searchPanel.add(searchButton);
         
         // Products table
-        String[] columns = {"ID", "Code", "Name", "Description", "Price", "Quantity", "Category", "Unit", "Min Qty", "Active"};
+        String[] columns = {"ID", "Code", "Name", "Description", "Price", "Quantity", "Category", "Unit", "Min Qty", "Active", "Supplier"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -98,7 +98,12 @@ public class ProductsPanel extends JPanel {
         tableModel.setRowCount(0);
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
-            String query = "SELECT * FROM prodotti ORDER BY nome";
+            String query = """
+                SELECT p.*, f.ragione_sociale as supplier_name
+                FROM prodotti p
+                LEFT JOIN fornitori f ON p.supplier_id = f.id
+                ORDER BY p.nome
+            """;
             try (Statement stmt = conn.createStatement();
                  ResultSet rs = stmt.executeQuery(query)) {
                 while (rs.next()) {
@@ -113,6 +118,7 @@ public class ProductsPanel extends JPanel {
                     row.add(rs.getString("unit_of_measure"));
                     row.add(rs.getInt("minimum_quantity"));
                     row.add(rs.getInt("active") == 1 ? "Yes" : "No");
+                    row.add(rs.getString("supplier_name") != null ? rs.getString("supplier_name") : "");
                     tableModel.addRow(row);
                 }
             }
@@ -134,17 +140,19 @@ public class ProductsPanel extends JPanel {
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
             String query = """
-                SELECT * FROM prodotti 
-                WHERE codice LIKE ? OR nome LIKE ? OR descrizione LIKE ?
-                ORDER BY nome
+                SELECT p.*, f.ragione_sociale as supplier_name
+                FROM prodotti p
+                LEFT JOIN fornitori f ON p.supplier_id = f.id
+                WHERE p.codice LIKE ? OR p.nome LIKE ? OR p.descrizione LIKE ?
+                ORDER BY p.nome
             """;
             String searchPattern = "%" + searchTerm + "%";
-            
+
             try (PreparedStatement pstmt = conn.prepareStatement(query)) {
                 pstmt.setString(1, searchPattern);
                 pstmt.setString(2, searchPattern);
                 pstmt.setString(3, searchPattern);
-                
+
                 try (ResultSet rs = pstmt.executeQuery()) {
                     while (rs.next()) {
                         Vector<Object> row = new Vector<>();
@@ -158,6 +166,7 @@ public class ProductsPanel extends JPanel {
                         row.add(rs.getString("unit_of_measure"));
                         row.add(rs.getInt("minimum_quantity"));
                         row.add(rs.getInt("active") == 1 ? "Yes" : "No");
+                        row.add(rs.getString("supplier_name") != null ? rs.getString("supplier_name") : "");
                         tableModel.addRow(row);
                     }
                 }
@@ -193,11 +202,19 @@ public class ProductsPanel extends JPanel {
 
             try {
                 Connection conn = DatabaseManager.getInstance().getConnection();
-                String query = "SELECT * FROM prodotti WHERE id = ?";
+                String query = """
+                    SELECT p.*, f.ragione_sociale as supplier_name
+                    FROM prodotti p
+                    LEFT JOIN fornitori f ON p.supplier_id = f.id
+                    WHERE p.id = ?
+                """;
                 try (PreparedStatement pstmt = conn.prepareStatement(query)) {
                     pstmt.setInt(1, productId);
                     try (ResultSet rs = pstmt.executeQuery()) {
                         if (rs.next()) {
+                            Integer supplierId = rs.getObject("supplier_id", Integer.class);
+                            String supplierName = rs.getString("supplier_name");
+
                             Product product = new Product(
                                 rs.getInt("id"),
                                 rs.getString("codice"),
@@ -212,7 +229,8 @@ public class ProductsPanel extends JPanel {
                                 rs.getInt("minimum_quantity"),
                                 rs.getDouble("acquisition_cost"),
                                 rs.getInt("active") == 1,
-                                rs.getString("supplier")
+                                supplierId,
+                                supplierName != null ? supplierName : ""
                             );
                             showProductDialog(product);
                         }
