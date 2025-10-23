@@ -423,14 +423,19 @@ public class OrderDialog extends JDialog {
                     "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            
+
             if (itemsTableModel.getRowCount() == 0) {
                 JOptionPane.showMessageDialog(this,
                     "Add at least one product to the order",
                     "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            
+
+            // Check stock availability before saving
+            if (!checkStockAvailability()) {
+                return;
+            }
+
             Connection conn = DatabaseManager.getInstance().getConnection();
             conn.setAutoCommit(false);
             try {
@@ -473,7 +478,10 @@ public class OrderDialog extends JDialog {
                             pstmt.executeUpdate();
                         }
                     }
-                    
+
+                    // Update product quantities and create warehouse movements
+                    updateProductStockAndMovements(conn, orderId, orderDate);
+
                 } else {
                     String orderQuery = """
                         UPDATE ordini
@@ -489,12 +497,15 @@ public class OrderDialog extends JDialog {
                         pstmt.executeUpdate();
                     }
                     
+                    // Restore previous stock quantities before deleting old details
+                    restorePreviousStock(conn, order.getId());
+
                     String deleteDetailsQuery = "DELETE FROM dettagli_ordine WHERE ordine_id = ?";
                     try (PreparedStatement pstmt = conn.prepareStatement(deleteDetailsQuery)) {
                         pstmt.setInt(1, order.getId());
                         pstmt.executeUpdate();
                     }
-                    
+
                     String detailQuery = """
                         INSERT INTO dettagli_ordine (ordine_id, prodotto_id, quantita, prezzo_unitario)
                         VALUES (?, ?, ?, ?)
@@ -508,6 +519,9 @@ public class OrderDialog extends JDialog {
                             pstmt.executeUpdate();
                         }
                     }
+
+                    // Update product quantities and create warehouse movements with new data
+                    updateProductStockAndMovements(conn, order.getId(), orderDate);
                 }
                 
                 conn.commit();
@@ -528,7 +542,143 @@ public class OrderDialog extends JDialog {
                 "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-    
+
+    /**
+     * Check if there is sufficient stock for all products in the order
+     */
+    private boolean checkStockAvailability() {
+        try {
+            Connection conn = DatabaseManager.getInstance().getConnection();
+            StringBuilder insufficientProducts = new StringBuilder();
+
+            for (int i = 0; i < itemsTableModel.getRowCount(); i++) {
+                int productId = (int)itemsTableModel.getValueAt(i, 0);
+                String productName = (String)itemsTableModel.getValueAt(i, 1);
+                int requestedQty = parseInteger(itemsTableModel.getValueAt(i, 2));
+
+                // Get current stock from database
+                String query = "SELECT quantita FROM prodotti WHERE id = ?";
+                try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                    pstmt.setInt(1, productId);
+                    ResultSet rs = pstmt.executeQuery();
+                    if (rs.next()) {
+                        int currentStock = rs.getInt("quantita");
+
+                        // If editing existing order, add back the old quantity for this product
+                        if (order != null) {
+                            int oldQty = getOldProductQuantity(conn, order.getId(), productId);
+                            currentStock += oldQty;
+                        }
+
+                        if (requestedQty > currentStock) {
+                            insufficientProducts.append(String.format(
+                                "- %s: Available %d, Requested %d\n",
+                                productName, currentStock, requestedQty));
+                        }
+                    }
+                }
+            }
+
+            if (insufficientProducts.length() > 0) {
+                int choice = JOptionPane.showConfirmDialog(this,
+                    "Insufficient stock for the following products:\n\n" +
+                    insufficientProducts.toString() + "\n" +
+                    "Do you want to proceed anyway?\n" +
+                    "This will result in negative stock.",
+                    "Insufficient Stock",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+
+                return choice == JOptionPane.YES_OPTION;
+            }
+
+            return true;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this,
+                "Error checking stock availability: " + e.getMessage(),
+                "Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+    }
+
+    /**
+     * Get the old quantity of a product in an existing order
+     */
+    private int getOldProductQuantity(Connection conn, int orderId, int productId) throws SQLException {
+        String query = "SELECT quantita FROM dettagli_ordine WHERE ordine_id = ? AND prodotto_id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setInt(1, orderId);
+            pstmt.setInt(2, productId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("quantita");
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Restore stock quantities from a previous order (when editing)
+     */
+    private void restorePreviousStock(Connection conn, int orderId) throws SQLException {
+        // Get old order details and restore stock
+        String query = "SELECT prodotto_id, quantita FROM dettagli_ordine WHERE ordine_id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setInt(1, orderId);
+            ResultSet rs = pstmt.executeQuery();
+
+            String updateQuery = "UPDATE prodotti SET quantita = quantita + ? WHERE id = ?";
+            try (PreparedStatement updatePstmt = conn.prepareStatement(updateQuery)) {
+                while (rs.next()) {
+                    int productId = rs.getInt("prodotto_id");
+                    int quantity = rs.getInt("quantita");
+
+                    updatePstmt.setInt(1, quantity);
+                    updatePstmt.setInt(2, productId);
+                    updatePstmt.executeUpdate();
+                }
+            }
+        }
+    }
+
+    /**
+     * Update product stock and create warehouse movements for an order
+     */
+    private void updateProductStockAndMovements(Connection conn, int orderId, Date orderDate) throws SQLException {
+        // Get order number for movement reference
+        String orderNumber = String.valueOf(orderId);
+
+        for (int i = 0; i < itemsTableModel.getRowCount(); i++) {
+            int productId = (int)itemsTableModel.getValueAt(i, 0);
+            int quantity = parseInteger(itemsTableModel.getValueAt(i, 2));
+
+            // Update product quantity (decrease stock)
+            String updateQuery = "UPDATE prodotti SET quantita = quantita - ? WHERE id = ?";
+            try (PreparedStatement pstmt = conn.prepareStatement(updateQuery)) {
+                pstmt.setInt(1, quantity);
+                pstmt.setInt(2, productId);
+                pstmt.executeUpdate();
+            }
+
+            // Create warehouse movement
+            String movementQuery = """
+                INSERT INTO movimenti_magazzino
+                (prodotto_id, data, tipo, quantita, causale, documento_numero, documento_tipo, note)
+                VALUES (?, ?, 'OUTWARD', ?, 'SALE', ?, 'ORDER', ?)
+            """;
+            try (PreparedStatement pstmt = conn.prepareStatement(movementQuery)) {
+                pstmt.setInt(1, productId);
+                pstmt.setTimestamp(2, DateUtils.toSqlTimestamp(orderDate));
+                pstmt.setInt(3, quantity);
+                pstmt.setString(4, orderNumber);
+                pstmt.setString(5, "Customer order #" + orderNumber);
+                pstmt.executeUpdate();
+            }
+        }
+    }
+
     public boolean isOrderSaved() {
         return orderSaved;
     }
