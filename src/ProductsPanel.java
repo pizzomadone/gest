@@ -39,7 +39,7 @@ public class ProductsPanel extends JPanel {
         searchPanel.add(searchButton);
         
         // Products table
-        String[] columns = {"ID", "Code", "Name", "Description", "Price", "Quantity"};
+        String[] columns = {"ID", "Code", "Name", "Description", "Price", "Quantity", "Category", "Unit", "Min Qty", "Active"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -109,6 +109,10 @@ public class ProductsPanel extends JPanel {
                     row.add(rs.getString("descrizione"));
                     row.add(rs.getDouble("prezzo"));
                     row.add(rs.getInt("quantita"));
+                    row.add(rs.getString("category"));
+                    row.add(rs.getString("unit_of_measure"));
+                    row.add(rs.getInt("minimum_quantity"));
+                    row.add(rs.getInt("active") == 1 ? "Yes" : "No");
                     tableModel.addRow(row);
                 }
             }
@@ -150,6 +154,10 @@ public class ProductsPanel extends JPanel {
                         row.add(rs.getString("descrizione"));
                         row.add(rs.getDouble("prezzo"));
                         row.add(rs.getInt("quantita"));
+                        row.add(rs.getString("category"));
+                        row.add(rs.getString("unit_of_measure"));
+                        row.add(rs.getInt("minimum_quantity"));
+                        row.add(rs.getInt("active") == 1 ? "Yes" : "No");
                         tableModel.addRow(row);
                     }
                 }
@@ -181,15 +189,40 @@ public class ProductsPanel extends JPanel {
     private void editSelectedProduct() {
         int selectedRow = productsTable.getSelectedRow();
         if (selectedRow != -1) {
-            Product product = new Product(
-                (int)tableModel.getValueAt(selectedRow, 0),
-                (String)tableModel.getValueAt(selectedRow, 1),
-                (String)tableModel.getValueAt(selectedRow, 2),
-                (String)tableModel.getValueAt(selectedRow, 3),
-                (double)tableModel.getValueAt(selectedRow, 4),
-                (int)tableModel.getValueAt(selectedRow, 5)
-            );
-            showProductDialog(product);
+            int productId = (int)tableModel.getValueAt(selectedRow, 0);
+
+            try {
+                Connection conn = DatabaseManager.getInstance().getConnection();
+                String query = "SELECT * FROM prodotti WHERE id = ?";
+                try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                    pstmt.setInt(1, productId);
+                    try (ResultSet rs = pstmt.executeQuery()) {
+                        if (rs.next()) {
+                            Product product = new Product(
+                                rs.getInt("id"),
+                                rs.getString("codice"),
+                                rs.getString("nome"),
+                                rs.getString("descrizione"),
+                                rs.getDouble("prezzo"),
+                                rs.getInt("quantita"),
+                                rs.getString("category"),
+                                rs.getString("alternative_sku"),
+                                rs.getDouble("weight"),
+                                rs.getString("unit_of_measure"),
+                                rs.getInt("minimum_quantity"),
+                                rs.getDouble("acquisition_cost"),
+                                rs.getInt("active") == 1,
+                                rs.getString("supplier")
+                            );
+                            showProductDialog(product);
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(this,
+                    "Error loading product: " + e.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
     

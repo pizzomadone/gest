@@ -67,7 +67,15 @@ public class DatabaseManager {
                 nome TEXT NOT NULL,
                 descrizione TEXT,
                 prezzo REAL NOT NULL,
-                quantita INTEGER DEFAULT 0
+                quantita INTEGER DEFAULT 0,
+                category TEXT DEFAULT '',
+                alternative_sku TEXT DEFAULT '',
+                weight REAL DEFAULT 0.0,
+                unit_of_measure TEXT DEFAULT 'pz',
+                minimum_quantity INTEGER DEFAULT 0,
+                acquisition_cost REAL DEFAULT 0.0,
+                active INTEGER DEFAULT 1,
+                supplier TEXT DEFAULT ''
             )
         """;
         
