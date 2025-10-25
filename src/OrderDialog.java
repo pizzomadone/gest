@@ -4,6 +4,9 @@ import java.awt.*;
 import java.awt.event.*;
 import java.sql.*;
 import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.ArrayList;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import javax.swing.event.TableModelListener;
@@ -23,6 +26,8 @@ public class OrderDialog extends JDialog {
     private Map<Integer, Product> productsCache;
     private volatile boolean updatingTotals = false;
     private TableModelListener tableListener;
+    private double currentTotal = 0.0; // Track total instead of parsing from label
+    private String previousStatus = null; // Track previous status for state changes
     
     // Constructor for JFrame parent
     public OrderDialog(JFrame parent, Order order) {
@@ -265,7 +270,8 @@ public class OrderDialog extends JDialog {
         
         dataField.setText(DateUtils.formatDate(order.getDataOrdine()));
         statoCombo.setSelectedItem(order.getStato());
-        
+        previousStatus = order.getStato(); // Store current status as previous
+
         for (OrderItem item : order.getItems()) {
             Vector<Object> row = new Vector<>();
             row.add(item.getProdottoId());
@@ -362,31 +368,32 @@ public class OrderDialog extends JDialog {
     
     private synchronized void updateTotals() {
         if (updatingTotals) return;
-        
+
         updatingTotals = true;
         try {
             double total = 0;
-            
+
             for (int i = 0; i < itemsTableModel.getRowCount(); i++) {
                 Object quantityObj = itemsTableModel.getValueAt(i, 2);
                 Object priceObj = itemsTableModel.getValueAt(i, 3);
-                
+
                 int quantity = parseInteger(quantityObj);
                 double price = parseDouble(priceObj);
-                
+
                 double itemTotal = quantity * price;
                 total += itemTotal;
-                
+
                 // Update row total
                 String newTotal = String.format("%.2f", itemTotal);
-                String currentTotal = (String) itemsTableModel.getValueAt(i, 4);
-                if (!newTotal.equals(currentTotal)) {
+                String currentTotalStr = (String) itemsTableModel.getValueAt(i, 4);
+                if (!newTotal.equals(currentTotalStr)) {
                     itemsTableModel.setValueAt(newTotal, i, 4);
                 }
             }
-            
+
+            currentTotal = total; // Store total value
             totalLabel.setText(String.format("Total: € %.2f", total));
-            
+
         } finally {
             updatingTotals = false;
         }
@@ -431,58 +438,85 @@ public class OrderDialog extends JDialog {
                 return;
             }
 
-            // Check stock availability before saving
-            if (!checkStockAvailability()) {
-                return;
+            Date orderDate = DateUtils.parseDate(dataField.getText(), dateFormat);
+            String newStatus = (String)statoCombo.getSelectedItem();
+
+            // Build list of stock items
+            List<StockManager.StockItem> stockItems = new ArrayList<>();
+            for (int i = 0; i < itemsTableModel.getRowCount(); i++) {
+                int productId = (int)itemsTableModel.getValueAt(i, 0);
+                String productName = (String)itemsTableModel.getValueAt(i, 1);
+                int quantity = parseInteger(itemsTableModel.getValueAt(i, 2));
+                stockItems.add(new StockManager.StockItem(productId, productName, quantity));
+            }
+
+            // Check stock availability for In Progress and Completed states
+            if ("In Progress".equals(newStatus) || "Completed".equals(newStatus)) {
+                Map<String, StockManager.StockAvailability> insufficient =
+                    StockManager.checkStockAvailability(
+                        DatabaseManager.getInstance().getConnection(),
+                        stockItems,
+                        order != null ? order.getId() : null,
+                        "ORDER"
+                    );
+
+                if (!insufficient.isEmpty()) {
+                    StringBuilder message = new StringBuilder("Insufficient stock for the following products:\n\n");
+                    for (Map.Entry<String, StockManager.StockAvailability> entry : insufficient.entrySet()) {
+                        message.append(String.format("- %s: %s\n",
+                            entry.getKey(), entry.getValue().getFormattedMessage()));
+                    }
+                    message.append("\nDo you want to proceed anyway?\nThis will result in negative stock.");
+
+                    int choice = JOptionPane.showConfirmDialog(this,
+                        message.toString(),
+                        "Insufficient Stock",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.WARNING_MESSAGE);
+
+                    if (choice != JOptionPane.YES_OPTION) {
+                        return;
+                    }
+                }
             }
 
             Connection conn = DatabaseManager.getInstance().getConnection();
             conn.setAutoCommit(false);
             try {
-                Date orderDate = DateUtils.parseDate(dataField.getText(), dateFormat);
-                String stato = (String)statoCombo.getSelectedItem();
-                double totale = Double.parseDouble(totalLabel.getText().replace("Total: € ", "").replace(",", "."));
-                
+                int orderId;
+
                 if (order == null) {
+                    // New order
                     String orderQuery = """
                         INSERT INTO ordini (cliente_id, data_ordine, stato, totale)
                         VALUES (?, ?, ?, ?)
                     """;
-                    int orderId;
                     try (PreparedStatement pstmt = conn.prepareStatement(orderQuery, Statement.RETURN_GENERATED_KEYS)) {
                         pstmt.setInt(1, selectedCustomer.getId());
                         pstmt.setTimestamp(2, DateUtils.toSqlTimestamp(orderDate));
-                        pstmt.setString(3, stato);
-                        pstmt.setDouble(4, totale);
+                        pstmt.setString(3, newStatus);
+                        pstmt.setDouble(4, currentTotal);
                         pstmt.executeUpdate();
-                        
+
                         try (ResultSet rs = pstmt.getGeneratedKeys()) {
                             if (rs.next()) {
                                 orderId = rs.getInt(1);
-                            } else { 
+                            } else {
                                 throw new SQLException("Failed to get order ID");
                             }
                         }
                     }
-                    
-                    String detailQuery = """
-                        INSERT INTO dettagli_ordine (ordine_id, prodotto_id, quantita, prezzo_unitario)
-                        VALUES (?, ?, ?, ?)
-                    """;
-                    try (PreparedStatement pstmt = conn.prepareStatement(detailQuery)) {
-                        for (int i = 0; i < itemsTableModel.getRowCount(); i++) {
-                            pstmt.setInt(1, orderId);
-                            pstmt.setInt(2, (int)itemsTableModel.getValueAt(i, 0));
-                            pstmt.setInt(3, parseInteger(itemsTableModel.getValueAt(i, 2)));
-                            pstmt.setDouble(4, parseDouble(itemsTableModel.getValueAt(i, 3)));
-                            pstmt.executeUpdate();
-                        }
-                    }
 
-                    // Update product quantities and create warehouse movements
-                    updateProductStockAndMovements(conn, orderId, orderDate);
+                    // Insert order details
+                    insertOrderDetails(conn, orderId);
+
+                    // Handle stock based on status
+                    handleStockForNewStatus(conn, orderId, newStatus, stockItems, orderDate);
 
                 } else {
+                    // Update existing order
+                    orderId = order.getId();
+
                     String orderQuery = """
                         UPDATE ordini
                         SET cliente_id = ?, data_ordine = ?, stato = ?, totale = ?
@@ -491,50 +525,37 @@ public class OrderDialog extends JDialog {
                     try (PreparedStatement pstmt = conn.prepareStatement(orderQuery)) {
                         pstmt.setInt(1, selectedCustomer.getId());
                         pstmt.setTimestamp(2, DateUtils.toSqlTimestamp(orderDate));
-                        pstmt.setString(3, stato);
-                        pstmt.setDouble(4, totale);
-                        pstmt.setInt(5, order.getId());
+                        pstmt.setString(3, newStatus);
+                        pstmt.setDouble(4, currentTotal);
+                        pstmt.setInt(5, orderId);
                         pstmt.executeUpdate();
                     }
-                    
-                    // Restore previous stock quantities before deleting old details
-                    restorePreviousStock(conn, order.getId());
 
+                    // Delete old details
                     String deleteDetailsQuery = "DELETE FROM dettagli_ordine WHERE ordine_id = ?";
                     try (PreparedStatement pstmt = conn.prepareStatement(deleteDetailsQuery)) {
-                        pstmt.setInt(1, order.getId());
+                        pstmt.setInt(1, orderId);
                         pstmt.executeUpdate();
                     }
 
-                    String detailQuery = """
-                        INSERT INTO dettagli_ordine (ordine_id, prodotto_id, quantita, prezzo_unitario)
-                        VALUES (?, ?, ?, ?)
-                    """;
-                    try (PreparedStatement pstmt = conn.prepareStatement(detailQuery)) {
-                        for (int i = 0; i < itemsTableModel.getRowCount(); i++) {
-                            pstmt.setInt(1, order.getId());
-                            pstmt.setInt(2, (int)itemsTableModel.getValueAt(i, 0));
-                            pstmt.setInt(3, parseInteger(itemsTableModel.getValueAt(i, 2)));
-                            pstmt.setDouble(4, parseDouble(itemsTableModel.getValueAt(i, 3)));
-                            pstmt.executeUpdate();
-                        }
-                    }
+                    // Insert new details
+                    insertOrderDetails(conn, orderId);
 
-                    // Update product quantities and create warehouse movements with new data
-                    updateProductStockAndMovements(conn, order.getId(), orderDate);
+                    // Handle status change
+                    handleStatusChange(conn, orderId, previousStatus, newStatus, stockItems, orderDate);
                 }
-                
+
                 conn.commit();
                 orderSaved = true;
                 dispose();
-                
+
             } catch (Exception e) {
                 conn.rollback();
                 throw e;
             } finally {
                 conn.setAutoCommit(true);
             }
-            
+
         } catch (Exception e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this,
@@ -543,139 +564,85 @@ public class OrderDialog extends JDialog {
         }
     }
 
-    /**
-     * Check if there is sufficient stock for all products in the order
-     */
-    private boolean checkStockAvailability() {
-        try {
-            Connection conn = DatabaseManager.getInstance().getConnection();
-            StringBuilder insufficientProducts = new StringBuilder();
-
+    private void insertOrderDetails(Connection conn, int orderId) throws SQLException {
+        String detailQuery = """
+            INSERT INTO dettagli_ordine (ordine_id, prodotto_id, quantita, prezzo_unitario)
+            VALUES (?, ?, ?, ?)
+        """;
+        try (PreparedStatement pstmt = conn.prepareStatement(detailQuery)) {
             for (int i = 0; i < itemsTableModel.getRowCount(); i++) {
-                int productId = (int)itemsTableModel.getValueAt(i, 0);
-                String productName = (String)itemsTableModel.getValueAt(i, 1);
-                int requestedQty = parseInteger(itemsTableModel.getValueAt(i, 2));
-
-                // Get current stock from database
-                String query = "SELECT quantita FROM prodotti WHERE id = ?";
-                try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                    pstmt.setInt(1, productId);
-                    ResultSet rs = pstmt.executeQuery();
-                    if (rs.next()) {
-                        int currentStock = rs.getInt("quantita");
-
-                        // If editing existing order, add back the old quantity for this product
-                        if (order != null) {
-                            int oldQty = getOldProductQuantity(conn, order.getId(), productId);
-                            currentStock += oldQty;
-                        }
-
-                        if (requestedQty > currentStock) {
-                            insufficientProducts.append(String.format(
-                                "- %s: Available %d, Requested %d\n",
-                                productName, currentStock, requestedQty));
-                        }
-                    }
-                }
-            }
-
-            if (insufficientProducts.length() > 0) {
-                int choice = JOptionPane.showConfirmDialog(this,
-                    "Insufficient stock for the following products:\n\n" +
-                    insufficientProducts.toString() + "\n" +
-                    "Do you want to proceed anyway?\n" +
-                    "This will result in negative stock.",
-                    "Insufficient Stock",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.WARNING_MESSAGE);
-
-                return choice == JOptionPane.YES_OPTION;
-            }
-
-            return true;
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this,
-                "Error checking stock availability: " + e.getMessage(),
-                "Error", JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
-    }
-
-    /**
-     * Get the old quantity of a product in an existing order
-     */
-    private int getOldProductQuantity(Connection conn, int orderId, int productId) throws SQLException {
-        String query = "SELECT quantita FROM dettagli_ordine WHERE ordine_id = ? AND prodotto_id = ?";
-        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-            pstmt.setInt(1, orderId);
-            pstmt.setInt(2, productId);
-            ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt("quantita");
-            }
-        }
-        return 0;
-    }
-
-    /**
-     * Restore stock quantities from a previous order (when editing)
-     */
-    private void restorePreviousStock(Connection conn, int orderId) throws SQLException {
-        // Get old order details and restore stock
-        String query = "SELECT prodotto_id, quantita FROM dettagli_ordine WHERE ordine_id = ?";
-        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-            pstmt.setInt(1, orderId);
-            ResultSet rs = pstmt.executeQuery();
-
-            String updateQuery = "UPDATE prodotti SET quantita = quantita + ? WHERE id = ?";
-            try (PreparedStatement updatePstmt = conn.prepareStatement(updateQuery)) {
-                while (rs.next()) {
-                    int productId = rs.getInt("prodotto_id");
-                    int quantity = rs.getInt("quantita");
-
-                    updatePstmt.setInt(1, quantity);
-                    updatePstmt.setInt(2, productId);
-                    updatePstmt.executeUpdate();
-                }
-            }
-        }
-    }
-
-    /**
-     * Update product stock and create warehouse movements for an order
-     */
-    private void updateProductStockAndMovements(Connection conn, int orderId, Date orderDate) throws SQLException {
-        // Get order number for movement reference
-        String orderNumber = String.valueOf(orderId);
-
-        for (int i = 0; i < itemsTableModel.getRowCount(); i++) {
-            int productId = (int)itemsTableModel.getValueAt(i, 0);
-            int quantity = parseInteger(itemsTableModel.getValueAt(i, 2));
-
-            // Update product quantity (decrease stock)
-            String updateQuery = "UPDATE prodotti SET quantita = quantita - ? WHERE id = ?";
-            try (PreparedStatement pstmt = conn.prepareStatement(updateQuery)) {
-                pstmt.setInt(1, quantity);
-                pstmt.setInt(2, productId);
+                pstmt.setInt(1, orderId);
+                pstmt.setInt(2, (int)itemsTableModel.getValueAt(i, 0));
+                pstmt.setInt(3, parseInteger(itemsTableModel.getValueAt(i, 2)));
+                pstmt.setDouble(4, parseDouble(itemsTableModel.getValueAt(i, 3)));
                 pstmt.executeUpdate();
             }
+        }
+    }
 
-            // Create warehouse movement
-            String movementQuery = """
-                INSERT INTO movimenti_magazzino
-                (prodotto_id, data, tipo, quantita, causale, documento_numero, documento_tipo, note)
-                VALUES (?, ?, 'OUTWARD', ?, 'SALE', ?, 'ORDER', ?)
-            """;
-            try (PreparedStatement pstmt = conn.prepareStatement(movementQuery)) {
-                pstmt.setInt(1, productId);
-                pstmt.setTimestamp(2, DateUtils.toSqlTimestamp(orderDate));
-                pstmt.setInt(3, quantity);
-                pstmt.setString(4, orderNumber);
-                pstmt.setString(5, "Customer order #" + orderNumber);
-                pstmt.executeUpdate();
-            }
+    private void handleStockForNewStatus(Connection conn, int orderId, String status,
+                                         List<StockManager.StockItem> items, Date orderDate) throws SQLException {
+        switch (status) {
+            case "New":
+                // No stock action
+                break;
+            case "In Progress":
+                // Create reservations
+                for (StockManager.StockItem item : items) {
+                    StockManager.createOrUpdateReservation(conn, item.getProductId(),
+                        "ORDER", orderId, item.getQuantity(), "Order #" + orderId);
+                }
+                break;
+            case "Completed":
+                // Decrement stock directly (no prior reservation)
+                StockManager.decrementStockDirectly(conn, items, orderDate,
+                    String.valueOf(orderId), "ORDER");
+                break;
+            case "Cancelled":
+                // No stock action
+                break;
+        }
+    }
+
+    private void handleStatusChange(Connection conn, int orderId, String oldStatus, String newStatus,
+                                    List<StockManager.StockItem> items, Date orderDate) throws SQLException {
+        // Handle transition from old status
+        if ("In Progress".equals(oldStatus) && !"In Progress".equals(newStatus)) {
+            // Cancel reservations
+            StockManager.cancelReservation(conn, "ORDER", orderId);
+        }
+
+        if ("Completed".equals(oldStatus) && !"Completed".equals(newStatus)) {
+            // Restore stock
+            StockManager.restoreStockFromDocument(conn, orderId, "ORDER");
+        }
+
+        // Handle transition to new status
+        switch (newStatus) {
+            case "New":
+                // No action needed
+                break;
+            case "In Progress":
+                // Create/update reservations
+                for (StockManager.StockItem item : items) {
+                    StockManager.createOrUpdateReservation(conn, item.getProductId(),
+                        "ORDER", orderId, item.getQuantity(), "Order #" + orderId);
+                }
+                break;
+            case "Completed":
+                if ("In Progress".equals(oldStatus)) {
+                    // Complete reservation and decrement stock
+                    StockManager.completeReservationAndDecrementStock(conn, "ORDER", orderId,
+                        orderDate, String.valueOf(orderId));
+                } else {
+                    // Decrement stock directly
+                    StockManager.decrementStockDirectly(conn, items, orderDate,
+                        String.valueOf(orderId), "ORDER");
+                }
+                break;
+            case "Cancelled":
+                // Reservations already cancelled above if coming from In Progress
+                break;
         }
     }
 

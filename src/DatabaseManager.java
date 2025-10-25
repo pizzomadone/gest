@@ -10,7 +10,7 @@ public class DatabaseManager {
         // Private constructor for the Singleton pattern
     }
     
-    public static DatabaseManager getInstance() {
+    public static synchronized DatabaseManager getInstance() {
         if (instance == null) {
             instance = new DatabaseManager();
         }
@@ -68,6 +68,7 @@ public class DatabaseManager {
                 descrizione TEXT,
                 prezzo REAL NOT NULL,
                 quantita INTEGER DEFAULT 0,
+                quantita_riservata INTEGER DEFAULT 0,
                 category TEXT DEFAULT '',
                 alternative_sku TEXT DEFAULT '',
                 weight REAL DEFAULT 0.0,
@@ -249,6 +250,21 @@ public class DatabaseManager {
             )
         """;
 
+        // Stock Reservations Table
+        String createPrenotazioniStockTable = """
+            CREATE TABLE IF NOT EXISTS prenotazioni_stock (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                prodotto_id INTEGER NOT NULL,
+                tipo_documento TEXT NOT NULL,
+                documento_id INTEGER NOT NULL,
+                quantita_riservata INTEGER NOT NULL,
+                data_prenotazione DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                stato TEXT NOT NULL DEFAULT 'ACTIVE',
+                note TEXT,
+                FOREIGN KEY (prodotto_id) REFERENCES prodotti (id)
+            )
+        """;
+
         // Company Data Table
         String createCompanyDataTable = """
             CREATE TABLE IF NOT EXISTS company_data (
@@ -282,11 +298,18 @@ public class DatabaseManager {
             stmt.execute(createMovimentiMagazzinoTable);
             stmt.execute(createScorteMinimaTable);
             stmt.execute(createNotificheMagazzinoTable);
+            stmt.execute(createPrenotazioniStockTable);
             stmt.execute(createCompanyDataTable);
         }
 
         // Migrate existing data from supplier TEXT to supplier_id INTEGER
         migrateSupplierData();
+
+        // Migrate existing databases to add quantita_riservata column
+        migrateStockReservationData();
+
+        // Create triggers for stock reservation synchronization
+        createStockReservationTriggers();
     }
 
     private void migrateSupplierData() throws SQLException {
@@ -363,7 +386,84 @@ public class DatabaseManager {
             }
         }
     }
-    
+
+    private void migrateStockReservationData() throws SQLException {
+        // Check if quantita_riservata column exists
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery("PRAGMA table_info(prodotti)")) {
+
+            boolean hasQuantitaRiservata = false;
+
+            while (rs.next()) {
+                String columnName = rs.getString("name");
+                if ("quantita_riservata".equals(columnName)) {
+                    hasQuantitaRiservata = true;
+                    break;
+                }
+            }
+
+            // If column doesn't exist, add it
+            if (!hasQuantitaRiservata) {
+                System.out.println("Adding quantita_riservata column to prodotti table...");
+                stmt.execute("ALTER TABLE prodotti ADD COLUMN quantita_riservata INTEGER DEFAULT 0");
+                System.out.println("Column quantita_riservata added successfully!");
+            }
+        }
+    }
+
+    private void createStockReservationTriggers() throws SQLException {
+        try (Statement stmt = connection.createStatement()) {
+            // Drop existing triggers if they exist
+            stmt.execute("DROP TRIGGER IF EXISTS update_stock_riservato_insert");
+            stmt.execute("DROP TRIGGER IF EXISTS update_stock_riservato_update");
+            stmt.execute("DROP TRIGGER IF EXISTS update_stock_riservato_delete");
+
+            // Trigger: When a new reservation is created with ACTIVE status
+            String insertTrigger = """
+                CREATE TRIGGER update_stock_riservato_insert
+                AFTER INSERT ON prenotazioni_stock
+                WHEN NEW.stato = 'ACTIVE'
+                BEGIN
+                    UPDATE prodotti
+                    SET quantita_riservata = quantita_riservata + NEW.quantita_riservata
+                    WHERE id = NEW.prodotto_id;
+                END
+            """;
+
+            // Trigger: When a reservation status changes
+            String updateTrigger = """
+                CREATE TRIGGER update_stock_riservato_update
+                AFTER UPDATE ON prenotazioni_stock
+                WHEN NEW.stato != OLD.stato OR NEW.quantita_riservata != OLD.quantita_riservata
+                BEGIN
+                    UPDATE prodotti
+                    SET quantita_riservata = quantita_riservata
+                        - CASE WHEN OLD.stato = 'ACTIVE' THEN OLD.quantita_riservata ELSE 0 END
+                        + CASE WHEN NEW.stato = 'ACTIVE' THEN NEW.quantita_riservata ELSE 0 END
+                    WHERE id = NEW.prodotto_id;
+                END
+            """;
+
+            // Trigger: When a reservation is deleted
+            String deleteTrigger = """
+                CREATE TRIGGER update_stock_riservato_delete
+                AFTER DELETE ON prenotazioni_stock
+                WHEN OLD.stato = 'ACTIVE'
+                BEGIN
+                    UPDATE prodotti
+                    SET quantita_riservata = quantita_riservata - OLD.quantita_riservata
+                    WHERE id = OLD.prodotto_id;
+                END
+            """;
+
+            stmt.execute(insertTrigger);
+            stmt.execute(updateTrigger);
+            stmt.execute(deleteTrigger);
+
+            System.out.println("Stock reservation triggers created successfully!");
+        }
+    }
+
     public Connection getConnection() throws SQLException {
         // Check if connection is valid, if not recreate it
         if (connection == null || connection.isClosed() || !connection.isValid(5)) {

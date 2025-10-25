@@ -8,12 +8,15 @@ import java.util.Calendar;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Vector;
+import java.util.List;
+import java.util.ArrayList;
 
 public class SupplierOrderDialog extends JDialog {
     private int supplierId;
     private String supplierName;
     private SupplierOrder order;
     private boolean orderSaved = false;
+    private String previousStatus = null;
     
     private JTextField numeroField;
     private JTextField dataField;
@@ -246,6 +249,7 @@ public class SupplierOrderDialog extends JDialog {
             dataConsegnaField.setText(DateUtils.formatDate(order.getDataConsegnaPrevista(), dateFormat));
         }
         statoCombo.setSelectedItem(order.getStato());
+        previousStatus = order.getStato(); // Store current status as previous
         noteArea.setText(order.getNote());
         
         // Carica prodotti
@@ -492,10 +496,34 @@ public class SupplierOrderDialog extends JDialog {
             double totale = Double.parseDouble(
                 totalLabel.getText().replace("Total: € ", "").replace(",", "."));
             
+            String newStatus = (String)statoCombo.getSelectedItem();
+
+            // Build list of stock items
+            List<StockManager.StockItem> stockItems = new ArrayList<>();
+            for (int i = 0; i < itemsTableModel.getRowCount(); i++) {
+                String codice = (String)itemsTableModel.getValueAt(i, 0);
+                String productName = (String)itemsTableModel.getValueAt(i, 1);
+                int quantity = parseInteger(itemsTableModel.getValueAt(i, 2));
+
+                // Find product ID by code
+                int productId = -1;
+                for (Product p : productsCache.values()) {
+                    if (p.getCodice().equals(codice)) {
+                        productId = p.getId();
+                        break;
+                    }
+                }
+                if (productId != -1) {
+                    stockItems.add(new StockManager.StockItem(productId, productName, quantity));
+                }
+            }
+
             Connection conn = DatabaseManager.getInstance().getConnection();
             conn.setAutoCommit(false);
-            
+
             try {
+                int orderId;
+
                 if (order == null) {
                     // Inserisci nuovo ordine
                     String orderQuery = """
@@ -504,18 +532,17 @@ public class SupplierOrderDialog extends JDialog {
                             stato, totale, note
                         ) VALUES (?, ?, ?, ?, ?, ?, ?)
                     """;
-                    
-                    int orderId;
+
                     try (PreparedStatement pstmt = conn.prepareStatement(orderQuery, Statement.RETURN_GENERATED_KEYS)) {
                         pstmt.setInt(1, supplierId);
                         pstmt.setString(2, numeroField.getText());
                         pstmt.setTimestamp(3, DateUtils.toSqlTimestamp(dataOrdine));
                         pstmt.setTimestamp(4, dataConsegna != null ? DateUtils.toSqlTimestamp(dataConsegna) : null);
-                        pstmt.setString(5, (String)statoCombo.getSelectedItem());
+                        pstmt.setString(5, newStatus);
                         pstmt.setDouble(6, totale);
                         pstmt.setString(7, noteArea.getText().trim());
                         pstmt.executeUpdate();
-                        
+
                         try (ResultSet rs = pstmt.getGeneratedKeys()) {
                             if (rs.next()) {
                                 orderId = rs.getInt(1);
@@ -524,40 +551,51 @@ public class SupplierOrderDialog extends JDialog {
                             }
                         }
                     }
-                    
+
                     // Inserisci dettagli ordine
                     insertOrderDetails(conn, orderId);
-                    
+
+                    // Handle stock if Completed
+                    if ("Completed".equals(newStatus)) {
+                        StockManager.incrementStock(conn, stockItems, dataOrdine,
+                            numeroField.getText(), "SUPPLIER_ORDER");
+                    }
+
                 } else {
                     // Aggiorna ordine esistente
+                    orderId = order.getId();
+
                     String orderQuery = """
                         UPDATE ordini_fornitori SET
                             data_ordine = ?, data_consegna_prevista = ?,
                             stato = ?, totale = ?, note = ?
                         WHERE id = ?
                     """;
-                    
+
                     try (PreparedStatement pstmt = conn.prepareStatement(orderQuery)) {
                         pstmt.setTimestamp(1, DateUtils.toSqlTimestamp(dataOrdine));
                         pstmt.setTimestamp(2, dataConsegna != null ? DateUtils.toSqlTimestamp(dataConsegna) : null);
-                        pstmt.setString(3, (String)statoCombo.getSelectedItem());
+                        pstmt.setString(3, newStatus);
                         pstmt.setDouble(4, totale);
                         pstmt.setString(5, noteArea.getText().trim());
-                        pstmt.setInt(6, order.getId());
+                        pstmt.setInt(6, orderId);
                         pstmt.executeUpdate();
                     }
-                    
+
                     // Elimina vecchi dettagli
                     String deleteDetailsQuery = "DELETE FROM dettagli_ordini_fornitori WHERE ordine_id = ?";
                     try (PreparedStatement pstmt = conn.prepareStatement(deleteDetailsQuery)) {
-                        pstmt.setInt(1, order.getId());
+                        pstmt.setInt(1, orderId);
                         pstmt.executeUpdate();
                     }
-                    
+
                     // Inserisci nuovi dettagli
-                    insertOrderDetails(conn, order.getId());
+                    insertOrderDetails(conn, orderId);
+
+                    // Handle status change for stock
+                    handleStatusChange(conn, orderId, previousStatus, newStatus, stockItems, dataOrdine);
                 }
-                
+
                 conn.commit();
                 orderSaved = true;
                 dispose();
@@ -613,6 +651,29 @@ public class SupplierOrderDialog extends JDialog {
         }
     }
     
+    private void handleStatusChange(Connection conn, int orderId, String oldStatus, String newStatus,
+                                    List<StockManager.StockItem> items, Date orderDate) throws SQLException {
+        // Supplier orders only increment stock when marked as Completed
+        // If changing FROM Completed to another status, we need to reverse the stock increment
+        if ("Completed".equals(oldStatus) && !"Completed".equals(newStatus)) {
+            // Reverse stock increment: decrement it back
+            for (StockManager.StockItem item : items) {
+                String query = "UPDATE prodotti SET quantita = quantita - ? WHERE id = ?";
+                try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                    pstmt.setInt(1, item.getQuantity());
+                    pstmt.setInt(2, item.getProductId());
+                    pstmt.executeUpdate();
+                }
+            }
+        }
+
+        // If changing TO Completed from another status, increment stock
+        if ("Completed".equals(newStatus) && !"Completed".equals(oldStatus)) {
+            StockManager.incrementStock(conn, items, orderDate,
+                numeroField.getText(), "SUPPLIER_ORDER");
+        }
+    }
+
     public boolean isOrderSaved() {
         return orderSaved;
     }

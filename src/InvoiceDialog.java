@@ -4,6 +4,9 @@ import java.awt.*;
 import java.awt.event.*;
 import java.sql.*;
 import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.ArrayList;
 import java.text.SimpleDateFormat;
 import java.text.ParseException;
 import java.util.Date;
@@ -24,6 +27,10 @@ public class InvoiceDialog extends JDialog {
     private SimpleDateFormat dateFormat;
     private Map<Integer, Product> productsCache;
     private volatile boolean isUpdatingTotals = false;
+    private double currentImponibile = 0.0;
+    private double currentIva = 0.0;
+    private double currentTotale = 0.0;
+    private String previousStatus = null;
     
     // Constructor for JFrame parent
     public InvoiceDialog(JFrame parent, Invoice invoice) {
@@ -469,7 +476,8 @@ public class InvoiceDialog extends JDialog {
         numeroField.setText(invoice.getNumero());
         dataField.setText(dateFormat.format(invoice.getData()));
         statoCombo.setSelectedItem(invoice.getStato());
-        
+        previousStatus = invoice.getStato(); // Store current status as previous
+
         // Load customer
         selectedCustomer = new Customer(
             invoice.getClienteId(),
@@ -529,11 +537,15 @@ public class InvoiceDialog extends JDialog {
             }
             
             double totale = imponibile + totaleIva;
-            
+
+            currentImponibile = imponibile;
+            currentIva = totaleIva;
+            currentTotale = totale;
+
             imponibileLabel.setText(String.format("Taxable Amount: € %.2f", imponibile));
             ivaLabel.setText(String.format("VAT: € %.2f", totaleIva));
             totaleLabel.setText(String.format("TOTAL: € %.2f", totale));
-            
+
         } finally {
             isUpdatingTotals = false;
         }
@@ -579,11 +591,6 @@ public class InvoiceDialog extends JDialog {
                 return;
             }
 
-            // Check stock availability before saving
-            if (!checkStockAvailability()) {
-                return;
-            }
-
             Date dataFattura;
             try {
                 dataFattura = dateFormat.parse(dataField.getText());
@@ -593,47 +600,81 @@ public class InvoiceDialog extends JDialog {
                     "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            
-            String stato = (String)statoCombo.getSelectedItem();
+
+            String newStatus = (String)statoCombo.getSelectedItem();
             String numero = numeroField.getText();
-            
-            // Calcola i totali dai dettagli
-            double imponibile = 0;
-            double totaleIva = 0;
-            
+
+            // Build list of stock items
+            List<StockManager.StockItem> stockItems = new ArrayList<>();
             for (int i = 0; i < itemsTableModel.getRowCount(); i++) {
+                String codice = (String)itemsTableModel.getValueAt(i, 0);
+                String productName = (String)itemsTableModel.getValueAt(i, 1);
                 int quantity = parseInteger(itemsTableModel.getValueAt(i, 2));
-                double price = parseDouble(itemsTableModel.getValueAt(i, 3));
-                double aliquotaIva = parseDouble(itemsTableModel.getValueAt(i, 4));
-                
-                double subtotal = quantity * price;
-                double iva = subtotal * (aliquotaIva / 100);
-                
-                imponibile += subtotal;
-                totaleIva += iva;
+
+                // Find product ID by code
+                int productId = -1;
+                for (Product p : productsCache.values()) {
+                    if (p.getCodice().equals(codice)) {
+                        productId = p.getId();
+                        break;
+                    }
+                }
+                if (productId != -1) {
+                    stockItems.add(new StockManager.StockItem(productId, productName, quantity));
+                }
             }
-            
-            double totale = imponibile + totaleIva;
-            
+
+            // Check stock availability for Issued invoices
+            if ("Issued".equals(newStatus) || "Paid".equals(newStatus)) {
+                Map<String, StockManager.StockAvailability> insufficient =
+                    StockManager.checkStockAvailability(
+                        DatabaseManager.getInstance().getConnection(),
+                        stockItems,
+                        invoice != null ? invoice.getId() : null,
+                        "INVOICE"
+                    );
+
+                if (!insufficient.isEmpty()) {
+                    StringBuilder message = new StringBuilder("Insufficient stock for the following products:\n\n");
+                    for (Map.Entry<String, StockManager.StockAvailability> entry : insufficient.entrySet()) {
+                        message.append(String.format("- %s: %s\n",
+                            entry.getKey(), entry.getValue().getFormattedMessage()));
+                    }
+                    message.append("\nDo you want to proceed anyway?\nThis will result in negative stock.");
+
+                    int choice = JOptionPane.showConfirmDialog(this,
+                        message.toString(),
+                        "Insufficient Stock",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.WARNING_MESSAGE);
+
+                    if (choice != JOptionPane.YES_OPTION) {
+                        return;
+                    }
+                }
+            }
+
             Connection conn = DatabaseManager.getInstance().getConnection();
             conn.setAutoCommit(false);
             try {
+                int invoiceId;
+
                 if (invoice == null) {
+                    // New invoice
                     String invoiceQuery = """
                         INSERT INTO fatture (numero, data, cliente_id, imponibile, iva, totale, stato)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     """;
-                    int invoiceId;
                     try (PreparedStatement pstmt = conn.prepareStatement(invoiceQuery, Statement.RETURN_GENERATED_KEYS)) {
                         pstmt.setString(1, numero);
                         pstmt.setDate(2, new java.sql.Date(dataFattura.getTime()));
                         pstmt.setInt(3, selectedCustomer.getId());
-                        pstmt.setDouble(4, imponibile);
-                        pstmt.setDouble(5, totaleIva);
-                        pstmt.setDouble(6, totale);
-                        pstmt.setString(7, stato);
+                        pstmt.setDouble(4, currentImponibile);
+                        pstmt.setDouble(5, currentIva);
+                        pstmt.setDouble(6, currentTotale);
+                        pstmt.setString(7, newStatus);
                         pstmt.executeUpdate();
-                        
+
                         try (ResultSet rs = pstmt.getGeneratedKeys()) {
                             if (rs.next()) {
                                 invoiceId = rs.getInt(1);
@@ -645,10 +686,13 @@ public class InvoiceDialog extends JDialog {
 
                     insertInvoiceDetails(conn, invoiceId);
 
-                    // Update product quantities and create warehouse movements
-                    updateProductStockAndMovements(conn, invoiceId, dataFattura);
+                    // Handle stock based on status
+                    handleStockForNewStatus(conn, invoiceId, newStatus, stockItems, dataFattura, numero);
 
                 } else {
+                    // Update existing invoice
+                    invoiceId = invoice.getId();
+
                     String invoiceQuery = """
                         UPDATE fatture
                         SET data = ?, cliente_id = ?, imponibile = ?, iva = ?, totale = ?, stato = ?
@@ -657,45 +701,69 @@ public class InvoiceDialog extends JDialog {
                     try (PreparedStatement pstmt = conn.prepareStatement(invoiceQuery)) {
                         pstmt.setDate(1, new java.sql.Date(dataFattura.getTime()));
                         pstmt.setInt(2, selectedCustomer.getId());
-                        pstmt.setDouble(3, imponibile);
-                        pstmt.setDouble(4, totaleIva);
-                        pstmt.setDouble(5, totale);
-                        pstmt.setString(6, stato);
-                        pstmt.setInt(7, invoice.getId());
+                        pstmt.setDouble(3, currentImponibile);
+                        pstmt.setDouble(4, currentIva);
+                        pstmt.setDouble(5, currentTotale);
+                        pstmt.setString(6, newStatus);
+                        pstmt.setInt(7, invoiceId);
                         pstmt.executeUpdate();
                     }
 
-                    // Restore previous stock quantities before deleting old details
-                    restorePreviousStock(conn, invoice.getId());
-
+                    // Delete old details
                     String deleteDetailsQuery = "DELETE FROM dettagli_fattura WHERE fattura_id = ?";
                     try (PreparedStatement pstmt = conn.prepareStatement(deleteDetailsQuery)) {
-                        pstmt.setInt(1, invoice.getId());
+                        pstmt.setInt(1, invoiceId);
                         pstmt.executeUpdate();
                     }
 
-                    insertInvoiceDetails(conn, invoice.getId());
+                    insertInvoiceDetails(conn, invoiceId);
 
-                    // Update product quantities and create warehouse movements with new data
-                    updateProductStockAndMovements(conn, invoice.getId(), dataFattura);
+                    // Handle status change
+                    handleStatusChange(conn, invoiceId, previousStatus, newStatus, stockItems, dataFattura, numero);
                 }
-                
+
                 conn.commit();
                 invoiceSaved = true;
                 dispose();
-                
+
             } catch (SQLException e) {
                 conn.rollback();
                 throw e;
             } finally {
                 conn.setAutoCommit(true);
             }
-            
+
         } catch (SQLException e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this,
                 "Error while saving the invoice: " + e.getMessage(),
                 "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void handleStockForNewStatus(Connection conn, int invoiceId, String status,
+                                        List<StockManager.StockItem> items, Date invoiceDate, String invoiceNumber) throws SQLException {
+        if ("Issued".equals(status) || "Paid".equals(status)) {
+            // Decrement stock directly
+            StockManager.decrementStockDirectly(conn, items, invoiceDate, invoiceNumber, "INVOICE");
+        }
+        // Draft and Canceled: no stock action
+    }
+
+    private void handleStatusChange(Connection conn, int invoiceId, String oldStatus, String newStatus,
+                                    List<StockManager.StockItem> items, Date invoiceDate, String invoiceNumber) throws SQLException {
+        // Handle transition from old status
+        if (("Issued".equals(oldStatus) || "Paid".equals(oldStatus)) &&
+            !("Issued".equals(newStatus) || "Paid".equals(newStatus))) {
+            // Restore stock
+            StockManager.restoreStockFromDocument(conn, invoiceId, "INVOICE");
+        }
+
+        // Handle transition to new status
+        if (("Issued".equals(newStatus) || "Paid".equals(newStatus)) &&
+            !("Issued".equals(oldStatus) || "Paid".equals(oldStatus))) {
+            // Decrement stock
+            StockManager.decrementStockDirectly(conn, items, invoiceDate, invoiceNumber, "INVOICE");
         }
     }
     
@@ -728,162 +796,6 @@ public class InvoiceDialog extends JDialog {
                 pstmt.setDouble(4, prezzoUnitario);
                 pstmt.setDouble(5, aliquotaIva);
                 pstmt.setDouble(6, totaleProdotto);
-                pstmt.executeUpdate();
-            }
-        }
-    }
-
-    /**
-     * Check if there is sufficient stock for all products in the invoice
-     */
-    private boolean checkStockAvailability() {
-        try {
-            Connection conn = DatabaseManager.getInstance().getConnection();
-            StringBuilder insufficientProducts = new StringBuilder();
-
-            for (int i = 0; i < itemsTableModel.getRowCount(); i++) {
-                String codice = (String)itemsTableModel.getValueAt(i, 0);
-                String productName = (String)itemsTableModel.getValueAt(i, 1);
-                int requestedQty = parseInteger(itemsTableModel.getValueAt(i, 2));
-
-                // Find product ID by code
-                int productId = -1;
-                for (Product p : productsCache.values()) {
-                    if (p.getCodice().equals(codice)) {
-                        productId = p.getId();
-                        break;
-                    }
-                }
-                if (productId == -1) continue;
-
-                // Get current stock from database
-                String query = "SELECT quantita FROM prodotti WHERE id = ?";
-                try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                    pstmt.setInt(1, productId);
-                    ResultSet rs = pstmt.executeQuery();
-                    if (rs.next()) {
-                        int currentStock = rs.getInt("quantita");
-
-                        // If editing existing invoice, add back the old quantity for this product
-                        if (invoice != null) {
-                            int oldQty = getOldProductQuantity(conn, invoice.getId(), productId);
-                            currentStock += oldQty;
-                        }
-
-                        if (requestedQty > currentStock) {
-                            insufficientProducts.append(String.format(
-                                "- %s: Available %d, Requested %d\n",
-                                productName, currentStock, requestedQty));
-                        }
-                    }
-                }
-            }
-
-            if (insufficientProducts.length() > 0) {
-                int choice = JOptionPane.showConfirmDialog(this,
-                    "Insufficient stock for the following products:\n\n" +
-                    insufficientProducts.toString() + "\n" +
-                    "Do you want to proceed anyway?\n" +
-                    "This will result in negative stock.",
-                    "Insufficient Stock",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.WARNING_MESSAGE);
-
-                return choice == JOptionPane.YES_OPTION;
-            }
-
-            return true;
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this,
-                "Error checking stock availability: " + e.getMessage(),
-                "Error", JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
-    }
-
-    /**
-     * Get the old quantity of a product in an existing invoice
-     */
-    private int getOldProductQuantity(Connection conn, int invoiceId, int productId) throws SQLException {
-        String query = "SELECT quantita FROM dettagli_fattura WHERE fattura_id = ? AND prodotto_id = ?";
-        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-            pstmt.setInt(1, invoiceId);
-            pstmt.setInt(2, productId);
-            ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt("quantita");
-            }
-        }
-        return 0;
-    }
-
-    /**
-     * Restore stock quantities from a previous invoice (when editing)
-     */
-    private void restorePreviousStock(Connection conn, int invoiceId) throws SQLException {
-        // Get old invoice details and restore stock
-        String query = "SELECT prodotto_id, quantita FROM dettagli_fattura WHERE fattura_id = ?";
-        try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-            pstmt.setInt(1, invoiceId);
-            ResultSet rs = pstmt.executeQuery();
-
-            String updateQuery = "UPDATE prodotti SET quantita = quantita + ? WHERE id = ?";
-            try (PreparedStatement updatePstmt = conn.prepareStatement(updateQuery)) {
-                while (rs.next()) {
-                    int productId = rs.getInt("prodotto_id");
-                    int quantity = rs.getInt("quantita");
-
-                    updatePstmt.setInt(1, quantity);
-                    updatePstmt.setInt(2, productId);
-                    updatePstmt.executeUpdate();
-                }
-            }
-        }
-    }
-
-    /**
-     * Update product stock and create warehouse movements for an invoice
-     */
-    private void updateProductStockAndMovements(Connection conn, int invoiceId, Date invoiceDate) throws SQLException {
-        // Get invoice number for movement reference
-        String invoiceNumber = numeroField.getText();
-
-        for (int i = 0; i < itemsTableModel.getRowCount(); i++) {
-            String codice = (String)itemsTableModel.getValueAt(i, 0);
-            int quantity = parseInteger(itemsTableModel.getValueAt(i, 2));
-
-            // Find product ID by code
-            int productId = -1;
-            for (Product p : productsCache.values()) {
-                if (p.getCodice().equals(codice)) {
-                    productId = p.getId();
-                    break;
-                }
-            }
-            if (productId == -1) continue;
-
-            // Update product quantity (decrease stock)
-            String updateQuery = "UPDATE prodotti SET quantita = quantita - ? WHERE id = ?";
-            try (PreparedStatement pstmt = conn.prepareStatement(updateQuery)) {
-                pstmt.setInt(1, quantity);
-                pstmt.setInt(2, productId);
-                pstmt.executeUpdate();
-            }
-
-            // Create warehouse movement
-            String movementQuery = """
-                INSERT INTO movimenti_magazzino
-                (prodotto_id, data, tipo, quantita, causale, documento_numero, documento_tipo, note)
-                VALUES (?, ?, 'OUTWARD', ?, 'SALE', ?, 'INVOICE', ?)
-            """;
-            try (PreparedStatement pstmt = conn.prepareStatement(movementQuery)) {
-                pstmt.setInt(1, productId);
-                pstmt.setTimestamp(2, new java.sql.Timestamp(invoiceDate.getTime()));
-                pstmt.setInt(3, quantity);
-                pstmt.setString(4, invoiceNumber);
-                pstmt.setString(5, "Invoice " + invoiceNumber);
                 pstmt.executeUpdate();
             }
         }

@@ -39,7 +39,7 @@ public class ProductsPanel extends JPanel {
         searchPanel.add(searchButton);
         
         // Products table
-        String[] columns = {"ID", "Code", "Name", "Description", "Price", "Quantity", "Category", "Unit", "Min Qty", "Active", "Supplier"};
+        String[] columns = {"ID", "Code", "Name", "Description", "Price", "Physical", "Reserved", "Available", "Category", "Unit", "Min Qty", "Active", "Supplier"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -113,7 +113,15 @@ public class ProductsPanel extends JPanel {
                     row.add(rs.getString("nome"));
                     row.add(rs.getString("descrizione"));
                     row.add(rs.getDouble("prezzo"));
-                    row.add(rs.getInt("quantita"));
+
+                    int physicalStock = rs.getInt("quantita");
+                    int reservedStock = rs.getInt("quantita_riservata");
+                    int availableStock = physicalStock - reservedStock;
+
+                    row.add(physicalStock);
+                    row.add(reservedStock);
+                    row.add(availableStock);
+
                     row.add(rs.getString("category"));
                     row.add(rs.getString("unit_of_measure"));
                     row.add(rs.getInt("minimum_quantity"));
@@ -161,7 +169,15 @@ public class ProductsPanel extends JPanel {
                         row.add(rs.getString("nome"));
                         row.add(rs.getString("descrizione"));
                         row.add(rs.getDouble("prezzo"));
-                        row.add(rs.getInt("quantita"));
+
+                        int physicalStock = rs.getInt("quantita");
+                        int reservedStock = rs.getInt("quantita_riservata");
+                        int availableStock = physicalStock - reservedStock;
+
+                        row.add(physicalStock);
+                        row.add(reservedStock);
+                        row.add(availableStock);
+
                         row.add(rs.getString("category"));
                         row.add(rs.getString("unit_of_measure"));
                         row.add(rs.getInt("minimum_quantity"));

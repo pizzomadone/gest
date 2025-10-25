@@ -51,7 +51,7 @@ public class WarehousePanel extends JPanel {
         JPanel panel = new JPanel(new BorderLayout());
         
         // Stock table
-        String[] columns = {"Code", "Product", "Quantity", "Minimum Stock", "Status", "Preferred Supplier"};
+        String[] columns = {"Code", "Product", "Physical", "Reserved", "Available", "Min Stock", "Status", "Preferred Supplier"};
         stockModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -162,33 +162,40 @@ public class WarehousePanel extends JPanel {
                 LEFT JOIN fornitori f ON sm.fornitore_preferito_id = f.id
                 ORDER BY p.nome
             """;
-            
+
             try (Statement stmt = conn.createStatement();
                  ResultSet rs = stmt.executeQuery(query)) {
                 while (rs.next()) {
                     Vector<Object> row = new Vector<>();
                     row.add(rs.getString("codice"));
                     row.add(rs.getString("nome"));
-                    int quantity = rs.getInt("quantita");
-                    row.add(quantity);
+
+                    int physicalStock = rs.getInt("quantita");
+                    int reservedStock = rs.getInt("quantita_riservata");
+                    int availableStock = physicalStock - reservedStock;
+
+                    row.add(physicalStock);
+                    row.add(reservedStock);
+                    row.add(availableStock);
+
                     int minQuantity = rs.getInt("quantita_minima");
                     row.add(minQuantity > 0 ? minQuantity : "-");
-                    
-                    // Determine stock status
+
+                    // Determine stock status based on available stock
                     String status;
                     if (minQuantity > 0) {
-                        if (quantity <= 0) {
+                        if (availableStock <= 0) {
                             status = "OUT OF STOCK";
-                        } else if (quantity < minQuantity) {
+                        } else if (availableStock < minQuantity) {
                             status = "LOW STOCK";
                         } else {
                             status = "OK";
                         }
                     } else {
-                        status = quantity <= 0 ? "OUT OF STOCK" : "OK";
+                        status = availableStock <= 0 ? "OUT OF STOCK" : "OK";
                     }
                     row.add(status);
-                    
+
                     row.add(rs.getString("fornitore_nome"));
                     stockModel.addRow(row);
                 }
@@ -456,20 +463,47 @@ public class WarehousePanel extends JPanel {
     private int findNotificationId(String dateStr, String productName, String type, String message) {
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
-            String query = """
-                SELECT n.id 
-                FROM notifiche_magazzino n
-                JOIN prodotti p ON n.prodotto_id = p.id
-                WHERE p.nome = ? AND n.tipo = ? AND n.messaggio = ?
-                ORDER BY n.data DESC
-                LIMIT 1
-            """;
-            
+
+            // Try to parse the date string to match against database
+            SimpleDateFormat displayFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+            Date parsedDate = null;
+            try {
+                parsedDate = displayFormat.parse(dateStr);
+            } catch (Exception e) {
+                // If parsing fails, we'll search without date
+            }
+
+            String query;
+            if (parsedDate != null) {
+                // Include date in search for more precision
+                query = """
+                    SELECT n.id
+                    FROM notifiche_magazzino n
+                    JOIN prodotti p ON n.prodotto_id = p.id
+                    WHERE p.nome = ? AND n.tipo = ? AND n.messaggio = ?
+                    AND datetime(n.data) = datetime(?)
+                    LIMIT 1
+                """;
+            } else {
+                // Fallback to original query without date
+                query = """
+                    SELECT n.id
+                    FROM notifiche_magazzino n
+                    JOIN prodotti p ON n.prodotto_id = p.id
+                    WHERE p.nome = ? AND n.tipo = ? AND n.messaggio = ?
+                    ORDER BY n.data DESC
+                    LIMIT 1
+                """;
+            }
+
             try (PreparedStatement pstmt = conn.prepareStatement(query)) {
                 pstmt.setString(1, productName);
                 pstmt.setString(2, type);
                 pstmt.setString(3, message);
-                
+                if (parsedDate != null) {
+                    pstmt.setTimestamp(4, new java.sql.Timestamp(parsedDate.getTime()));
+                }
+
                 try (ResultSet rs = pstmt.executeQuery()) {
                     if (rs.next()) {
                         return rs.getInt("id");
