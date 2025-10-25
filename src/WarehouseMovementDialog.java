@@ -331,12 +331,10 @@ public class WarehouseMovementDialog extends JDialog {
         documentNumberField.setText(movement.getDocumentoNumero() != null ? movement.getDocumentoNumero() : "");
         documentTypeCombo.setSelectedItem(movement.getDocumentoTipo() != null ? movement.getDocumentoTipo() : "");
         notesArea.setText(movement.getNote() != null ? movement.getNote() : "");
-        
-        // Disable product modification for existing movements
-        selectProductButton.setEnabled(false);
-        selectProductButton.setText("Product: " + (selectedProduct != null ? 
-            selectedProduct.getCodice() + " - " + selectedProduct.getNome() : "N/A"));
-        
+
+        // Product can be modified even for existing movements
+        updateProductButton();
+
         // Update availability info
         updateAvailabilityCheck();
     }
@@ -438,29 +436,30 @@ public class WarehouseMovementDialog extends JDialog {
                     }
                     
                 } else {
-                    // Update existing movement
+                    // Update existing movement (product can now be changed)
                     String updateQuery = """
                         UPDATE movimenti_magazzino SET
-                            tipo = ?, quantita = ?, causale = ?,
+                            prodotto_id = ?, tipo = ?, quantita = ?, causale = ?,
                             documento_numero = ?, documento_tipo = ?, note = ?
                         WHERE id = ?
                     """;
-                    
+
                     try (PreparedStatement pstmt = conn.prepareStatement(updateQuery)) {
-                        pstmt.setString(1, type);
-                        pstmt.setInt(2, quantity);
-                        pstmt.setString(3, reason);
-                        
+                        pstmt.setInt(1, selectedProduct.getId());
+                        pstmt.setString(2, type);
+                        pstmt.setInt(3, quantity);
+                        pstmt.setString(4, reason);
+
                         String docNumber = documentNumberField.getText().trim();
-                        pstmt.setString(4, docNumber.isEmpty() ? null : docNumber);
-                        
+                        pstmt.setString(5, docNumber.isEmpty() ? null : docNumber);
+
                         String docType = (String)documentTypeCombo.getSelectedItem();
-                        pstmt.setString(5, (docType == null || docType.trim().isEmpty()) ? null : docType);
-                        
+                        pstmt.setString(6, (docType == null || docType.trim().isEmpty()) ? null : docType);
+
                         String notes = notesArea.getText().trim();
-                        pstmt.setString(6, notes.isEmpty() ? null : notes);
-                        
-                        pstmt.setInt(7, movement.getId());
+                        pstmt.setString(7, notes.isEmpty() ? null : notes);
+
+                        pstmt.setInt(8, movement.getId());
                         pstmt.executeUpdate();
                     }
                     
