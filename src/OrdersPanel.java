@@ -287,36 +287,50 @@ public class OrdersPanel extends JPanel {
         if (selectedRow != -1) {
             int id = (int)tableModel.getValueAt(selectedRow, 0);
             String cliente = (String)tableModel.getValueAt(selectedRow, 1);
-            
+            String status = (String)tableModel.getValueAt(selectedRow, 3);
+
             int result = JOptionPane.showConfirmDialog(this,
-                "Are you sure you want to delete the order from customer '" + cliente + "'?",
+                "Are you sure you want to delete the order from customer '" + cliente + "'?\n" +
+                "Status: " + status + "\n" +
+                (status.equals("Completed") ? "Stock will be restored." :
+                 status.equals("In Progress") ? "Reservations will be cancelled." :
+                 "No stock changes."),
                 "Confirm Deletion",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.WARNING_MESSAGE);
-                
+
             if (result == JOptionPane.YES_OPTION) {
                 try {
                     Connection conn = DatabaseManager.getInstance().getConnection();
                     conn.setAutoCommit(false);
-                    
+
                     try {
-                        // First, delete the order details
+                        // Restore stock and handle reservations based on order status
+                        StockManager.deleteOrder(conn, id, status);
+
+                        // Delete the order details
                         String deleteDetailsQuery = "DELETE FROM dettagli_ordine WHERE ordine_id = ?";
                         try (PreparedStatement pstmt = conn.prepareStatement(deleteDetailsQuery)) {
                             pstmt.setInt(1, id);
                             pstmt.executeUpdate();
                         }
-                        
-                        // Then, delete the order
+
+                        // Delete the order
                         String deleteOrderQuery = "DELETE FROM ordini WHERE id = ?";
                         try (PreparedStatement pstmt = conn.prepareStatement(deleteOrderQuery)) {
                             pstmt.setInt(1, id);
                             pstmt.executeUpdate();
                         }
-                        
+
                         conn.commit();
                         loadOrders();
-                        
+
+                        JOptionPane.showMessageDialog(this,
+                            "Order deleted successfully!" +
+                            (status.equals("Completed") ? "\nStock has been restored." :
+                             status.equals("In Progress") ? "\nReservations have been cancelled." : ""),
+                            "Success", JOptionPane.INFORMATION_MESSAGE);
+
                     } catch (SQLException e) {
                         conn.rollback();
                         throw e;

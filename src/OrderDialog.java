@@ -607,8 +607,9 @@ public class OrderDialog extends JDialog {
     private void handleStatusChange(Connection conn, int orderId, String oldStatus, String newStatus,
                                     List<StockManager.StockItem> items, Date orderDate) throws SQLException {
         // Handle transition from old status
-        if ("In Progress".equals(oldStatus) && !"In Progress".equals(newStatus)) {
-            // Cancel reservations
+        if ("In Progress".equals(oldStatus) && !"In Progress".equals(newStatus) && !"Completed".equals(newStatus)) {
+            // Cancel reservations only if NOT transitioning to Completed
+            // (If going to Completed, reservations will be completed instead)
             StockManager.cancelReservation(conn, "ORDER", orderId);
         }
 
