@@ -136,7 +136,7 @@ public class ProductDialog extends JDialog {
         formPanel.add(new JLabel("Unit of Measure:"), gbc);
 
         gbc.gridx = 1;
-        String[] units = {"pz", "kg", "m", "litri", "box", "pack"};
+        String[] units = {"pcs", "kg", "m", "liters", "box", "pack"};
         unitOfMeasureComboBox = new JComboBox<>(units);
         unitOfMeasureComboBox.setEditable(true);
         formPanel.add(unitOfMeasureComboBox, gbc);
