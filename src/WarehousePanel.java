@@ -189,7 +189,7 @@ public class WarehousePanel extends JPanel {
             Connection conn = DatabaseManager.getInstance().getConnection();
             String query = """
                 SELECT p.*, sm.minimum_quantity, sm.reorder_quantity,
-                        s.name as supplier_name
+                        s.company_name as supplier_name
                 FROM products p
                 LEFT JOIN minimum_stock sm ON p.id = sm.product_id
                 LEFT JOIN suppliers s ON sm.preferred_supplier = s.id
@@ -606,7 +606,7 @@ public class WarehousePanel extends JPanel {
         String query = """
             SELECT p.id, p.name, sm.minimum_quantity, sm.reorder_quantity,
                     sm.lead_time_days, sm.preferred_supplier,
-                    s.name as supplier_name, sm.notes
+                    s.company_name as supplier_name, sm.notes
             FROM products p
             LEFT JOIN minimum_stock sm ON p.id = sm.product_id
             LEFT JOIN suppliers s ON sm.preferred_supplier = s.id
