@@ -643,7 +643,12 @@ public class WarehousePanel extends JPanel {
 
             try {
                 Connection conn = DatabaseManager.getInstance().getConnection();
-                String query = "SELECT * FROM movimenti_magazzino WHERE id = ?";
+                String query = """
+                    SELECT m.*, p.nome as prodotto_nome
+                    FROM movimenti_magazzino m
+                    JOIN prodotti p ON m.prodotto_id = p.id
+                    WHERE m.id = ?
+                """;
 
                 try (PreparedStatement pstmt = conn.prepareStatement(query)) {
                     pstmt.setInt(1, movementId);
@@ -653,6 +658,7 @@ public class WarehousePanel extends JPanel {
                         WarehouseMovement movement = new WarehouseMovement(
                             rs.getInt("id"),
                             rs.getInt("prodotto_id"),
+                            rs.getString("prodotto_nome"),
                             DateUtils.parseDate(rs, "data"),
                             rs.getString("tipo"),
                             rs.getInt("quantita"),

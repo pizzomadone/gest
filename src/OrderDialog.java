@@ -531,6 +531,12 @@ public class OrderDialog extends JDialog {
                         pstmt.executeUpdate();
                     }
 
+                    // If order was "In Progress", cancel old reservations before changing details
+                    // This ensures reservations match the NEW quantities, not old ones
+                    if ("In Progress".equals(previousStatus)) {
+                        StockManager.cancelReservation(conn, "ORDER", orderId);
+                    }
+
                     // Delete old details
                     String deleteDetailsQuery = "DELETE FROM dettagli_ordine WHERE ordine_id = ?";
                     try (PreparedStatement pstmt = conn.prepareStatement(deleteDetailsQuery)) {
@@ -541,7 +547,7 @@ public class OrderDialog extends JDialog {
                     // Insert new details
                     insertOrderDetails(conn, orderId);
 
-                    // Handle status change
+                    // Handle status change (now reservations are clean if they existed)
                     handleStatusChange(conn, orderId, previousStatus, newStatus, stockItems, orderDate);
                 }
 
@@ -606,12 +612,8 @@ public class OrderDialog extends JDialog {
 
     private void handleStatusChange(Connection conn, int orderId, String oldStatus, String newStatus,
                                     List<StockManager.StockItem> items, Date orderDate) throws SQLException {
-        // Handle transition from old status
-        if ("In Progress".equals(oldStatus) && !"In Progress".equals(newStatus) && !"Completed".equals(newStatus)) {
-            // Cancel reservations only if NOT transitioning to Completed
-            // (If going to Completed, reservations will be completed instead)
-            StockManager.cancelReservation(conn, "ORDER", orderId);
-        }
+        // Note: If oldStatus was "In Progress", reservations were already cancelled
+        // before updating details, so we don't need to cancel them here
 
         if ("Completed".equals(oldStatus) && !"Completed".equals(newStatus)) {
             // Restore stock
@@ -624,25 +626,19 @@ public class OrderDialog extends JDialog {
                 // No action needed
                 break;
             case "In Progress":
-                // Create/update reservations
+                // Create new reservations with current quantities
                 for (StockManager.StockItem item : items) {
                     StockManager.createOrUpdateReservation(conn, item.getProductId(),
                         "ORDER", orderId, item.getQuantity(), "Order #" + orderId);
                 }
                 break;
             case "Completed":
-                if ("In Progress".equals(oldStatus)) {
-                    // Complete reservation and decrement stock
-                    StockManager.completeReservationAndDecrementStock(conn, "ORDER", orderId,
-                        orderDate, String.valueOf(orderId));
-                } else {
-                    // Decrement stock directly
-                    StockManager.decrementStockDirectly(conn, items, orderDate,
-                        String.valueOf(orderId), "ORDER");
-                }
+                // Always decrement stock directly (reservations were cancelled if they existed)
+                StockManager.decrementStockDirectly(conn, items, orderDate,
+                    String.valueOf(orderId), "ORDER");
                 break;
             case "Cancelled":
-                // Reservations already cancelled above if coming from In Progress
+                // No action needed (reservations already cancelled if they existed)
                 break;
         }
     }
