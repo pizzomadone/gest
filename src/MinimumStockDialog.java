@@ -227,7 +227,7 @@ public class MinimumStockDialog extends JDialog {
                 String updateQuery = """
                     UPDATE minimum_stock SET
                         minimum_quantity = ?, reorder_quantity = ?,
-                        lead_time_days = ?, preferred_supplier = ?, notes = ?
+                        lead_time_days = ?, preferred_supplier_id = ?, notes = ?
                     WHERE product_id = ?
                 """;
                 try (PreparedStatement pstmt = conn.prepareStatement(updateQuery)) {
@@ -248,7 +248,7 @@ public class MinimumStockDialog extends JDialog {
                 String insertQuery = """
                     INSERT INTO minimum_stock (
                         product_id, minimum_quantity, reorder_quantity,
-                        lead_time_days, preferred_supplier, notes
+                        lead_time_days, preferred_supplier_id, notes
                     ) VALUES (?, ?, ?, ?, ?, ?)
                 """;
                 try (PreparedStatement pstmt = conn.prepareStatement(insertQuery)) {
