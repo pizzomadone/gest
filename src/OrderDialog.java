@@ -17,8 +17,8 @@ public class OrderDialog extends JDialog {
     private boolean orderSaved = false;
     private JButton selectCustomerButton;
     private Customer selectedCustomer;
-    private JTextField dataField;
-    private JComboBox<String> statoCombo;
+    private JTextField dateField;
+    private JComboBox<String> statusCombo;
     private JTable itemsTable;
     private DefaultTableModel itemsTableModel;
     private JLabel totalLabel;
@@ -105,16 +105,16 @@ public class OrderDialog extends JDialog {
         orderPanel.add(new JLabel("Date:"), gbc);
         
         gbc.gridx = 1;
-        dataField = new JTextField(dateFormat.format(new Date()));
-        orderPanel.add(dataField, gbc);
-        
+        dateField = new JTextField(dateFormat.format(new Date()));
+        orderPanel.add(dateField, gbc);
+
         // Status
         gbc.gridx = 2;
         orderPanel.add(new JLabel("Status:"), gbc);
-        
+
         gbc.gridx = 3;
-        statoCombo = new JComboBox<>(new String[]{"New", "In Progress", "Completed", "Cancelled"});
-        orderPanel.add(statoCombo, gbc);
+        statusCombo = new JComboBox<>(new String[]{"New", "In Progress", "Completed", "Cancelled"});
+        orderPanel.add(statusCombo, gbc);
         
         // Products table
         String[] columns = {"ID", "Product", "Quantity", "Unit Price", "Total"};
@@ -205,14 +205,14 @@ public class OrderDialog extends JDialog {
     
     private void updateCustomerButton() {
         if (selectedCustomer != null) {
-            String buttonText = String.format("%s %s", 
-                selectedCustomer.getNome(), 
-                selectedCustomer.getCognome());
-            
+            String buttonText = String.format("%s %s",
+                selectedCustomer.getFirstName(),
+                selectedCustomer.getLastName());
+
             if (selectedCustomer.getEmail() != null && !selectedCustomer.getEmail().isEmpty()) {
                 buttonText += " (" + selectedCustomer.getEmail() + ")";
             }
-            
+
             selectCustomerButton.setText(buttonText);
             selectCustomerButton.setToolTipText("Customer: " + buttonText);
         }
@@ -231,17 +231,17 @@ public class OrderDialog extends JDialog {
     private void loadProducts() {
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
-            String query = "SELECT * FROM prodotti ORDER BY nome";
+            String query = "SELECT * FROM products ORDER BY name";
             try (Statement stmt = conn.createStatement();
                  ResultSet rs = stmt.executeQuery(query)) {
                 while (rs.next()) {
                     Product product = new Product(
                         rs.getInt("id"),
-                        rs.getString("codice"),
-                        rs.getString("nome"),
-                        rs.getString("descrizione"),
-                        rs.getDouble("prezzo"),
-                        rs.getInt("quantita")
+                        rs.getString("code"),
+                        rs.getString("name"),
+                        rs.getString("description"),
+                        rs.getDouble("price"),
+                        rs.getInt("quantity")
                     );
                     productsCache.put(product.getId(), product);
                 }
@@ -256,49 +256,49 @@ public class OrderDialog extends JDialog {
     
     private void loadOrderData() {
         // Load customer data
-        if (order.getClienteId() > 0) {
+        if (order.getCustomerId() > 0) {
             try {
-                selectedCustomer = loadCustomerById(order.getClienteId());
+                selectedCustomer = loadCustomerById(order.getCustomerId());
                 if (selectedCustomer != null) {
                     updateCustomerButton();
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
-                selectCustomerButton.setText(order.getClienteNome());
+                selectCustomerButton.setText(order.getCustomerName());
             }
         }
-        
-        dataField.setText(DateUtils.formatDate(order.getDataOrdine()));
-        statoCombo.setSelectedItem(order.getStato());
-        previousStatus = order.getStato(); // Store current status as previous
+
+        dateField.setText(DateUtils.formatDate(order.getOrderDate()));
+        statusCombo.setSelectedItem(order.getStatus());
+        previousStatus = order.getStatus(); // Store current status as previous
 
         for (OrderItem item : order.getItems()) {
             Vector<Object> row = new Vector<>();
-            row.add(item.getProdottoId());
-            row.add(item.getProdottoNome());
-            row.add(item.getQuantita());
-            row.add(String.format("%.2f", item.getPrezzoUnitario()));
-            row.add(String.format("%.2f", item.getTotale()));
+            row.add(item.getProductId());
+            row.add(item.getProductName());
+            row.add(item.getQuantity());
+            row.add(String.format("%.2f", item.getUnitPrice()));
+            row.add(String.format("%.2f", item.getTotal()));
             itemsTableModel.addRow(row);
         }
-        
+
         updateTotals();
     }
     
     private Customer loadCustomerById(int customerId) throws SQLException {
         Connection conn = DatabaseManager.getInstance().getConnection();
-        String query = "SELECT * FROM clienti WHERE id = ?";
+        String query = "SELECT * FROM customers WHERE id = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, customerId);
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
                     return new Customer(
                         rs.getInt("id"),
-                        rs.getString("nome"),
-                        rs.getString("cognome"),
+                        rs.getString("first_name"),
+                        rs.getString("last_name"),
                         rs.getString("email"),
-                        rs.getString("telefono"),
-                        rs.getString("indirizzo")
+                        rs.getString("phone"),
+                        rs.getString("address")
                     );
                 }
             }
@@ -336,10 +336,10 @@ public class OrderDialog extends JDialog {
             // Add new product to table
             Vector<Object> row = new Vector<>();
             row.add(product.getId());
-            row.add(product.getNome());
+            row.add(product.getName());
             row.add(quantity);
-            row.add(String.format("%.2f", product.getPrezzo()));
-            row.add(String.format("%.2f", quantity * product.getPrezzo()));
+            row.add(String.format("%.2f", product.getPrice()));
+            row.add(String.format("%.2f", quantity * product.getPrice()));
             itemsTableModel.addRow(row);
             
             updateTotals();
@@ -438,8 +438,8 @@ public class OrderDialog extends JDialog {
                 return;
             }
 
-            Date orderDate = DateUtils.parseDate(dataField.getText(), dateFormat);
-            String newStatus = (String)statoCombo.getSelectedItem();
+            Date orderDate = DateUtils.parseDate(dateField.getText(), dateFormat);
+            String newStatus = (String)statusCombo.getSelectedItem();
 
             // Build list of stock items
             List<StockManager.StockItem> stockItems = new ArrayList<>();
@@ -488,7 +488,7 @@ public class OrderDialog extends JDialog {
                 if (order == null) {
                     // New order
                     String orderQuery = """
-                        INSERT INTO ordini (cliente_id, data_ordine, stato, totale)
+                        INSERT INTO orders (customer_id, order_date, status, total)
                         VALUES (?, ?, ?, ?)
                     """;
                     try (PreparedStatement pstmt = conn.prepareStatement(orderQuery, Statement.RETURN_GENERATED_KEYS)) {
@@ -518,8 +518,8 @@ public class OrderDialog extends JDialog {
                     orderId = order.getId();
 
                     String orderQuery = """
-                        UPDATE ordini
-                        SET cliente_id = ?, data_ordine = ?, stato = ?, totale = ?
+                        UPDATE orders
+                        SET customer_id = ?, order_date = ?, status = ?, total = ?
                         WHERE id = ?
                     """;
                     try (PreparedStatement pstmt = conn.prepareStatement(orderQuery)) {
@@ -538,7 +538,7 @@ public class OrderDialog extends JDialog {
                     }
 
                     // Delete old details
-                    String deleteDetailsQuery = "DELETE FROM dettagli_ordine WHERE ordine_id = ?";
+                    String deleteDetailsQuery = "DELETE FROM order_details WHERE order_id = ?";
                     try (PreparedStatement pstmt = conn.prepareStatement(deleteDetailsQuery)) {
                         pstmt.setInt(1, orderId);
                         pstmt.executeUpdate();
@@ -572,7 +572,7 @@ public class OrderDialog extends JDialog {
 
     private void insertOrderDetails(Connection conn, int orderId) throws SQLException {
         String detailQuery = """
-            INSERT INTO dettagli_ordine (ordine_id, prodotto_id, quantita, prezzo_unitario)
+            INSERT INTO order_details (order_id, product_id, quantity, unit_price)
             VALUES (?, ?, ?, ?)
         """;
         try (PreparedStatement pstmt = conn.prepareStatement(detailQuery)) {

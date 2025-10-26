@@ -662,7 +662,7 @@ public class MainWindow extends JFrame {
     }
     
     public static void main(String[] args) {
-        // Aggiungi questo blocco di codice per l'integrazione con macOS
+        // Add this code block for macOS integration
         final String os = System.getProperty("os.name");
         if (os != null && os.startsWith("Mac OS X")) {
             System.setProperty("apple.laf.useScreenMenuBar", "true");
