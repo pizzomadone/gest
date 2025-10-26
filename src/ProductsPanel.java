@@ -99,9 +99,9 @@ public class ProductsPanel extends JPanel {
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
             String query = """
-                SELECT p.*, f.ragione_sociale as supplier_name
+                SELECT p.*, f.company_name as supplier_name
                 FROM products p
-                LEFT JOIN fornitori f ON p.supplier_id = f.id
+                LEFT JOIN suppliers f ON p.supplier_id = f.id
                 ORDER BY p.name
             """;
             try (Statement stmt = conn.createStatement();
@@ -148,9 +148,9 @@ public class ProductsPanel extends JPanel {
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
             String query = """
-                SELECT p.*, f.ragione_sociale as supplier_name
+                SELECT p.*, f.company_name as supplier_name
                 FROM products p
-                LEFT JOIN fornitori f ON p.supplier_id = f.id
+                LEFT JOIN suppliers f ON p.supplier_id = f.id
                 WHERE p.code LIKE ? OR p.name LIKE ? OR p.description LIKE ?
                 ORDER BY p.name
             """;
@@ -219,9 +219,9 @@ public class ProductsPanel extends JPanel {
             try {
                 Connection conn = DatabaseManager.getInstance().getConnection();
                 String query = """
-                    SELECT p.*, f.ragione_sociale as supplier_name
+                    SELECT p.*, f.company_name as supplier_name
                     FROM products p
-                    LEFT JOIN fornitori f ON p.supplier_id = f.id
+                    LEFT JOIN suppliers f ON p.supplier_id = f.id
                     WHERE p.id = ?
                 """;
                 try (PreparedStatement pstmt = conn.prepareStatement(query)) {
@@ -361,7 +361,7 @@ public class ProductsPanel extends JPanel {
                 // Delete in order to respect foreign key constraints
                 
                 // 1. Delete order details
-                String deleteOrderDetails = "DELETE FROM dettagli_ordine WHERE prodotto_id = ?";
+                String deleteOrderDetails = "DELETE FROM order_details WHERE product_id = ?";
                 try (PreparedStatement pstmt = conn.prepareStatement(deleteOrderDetails)) {
                     pstmt.setInt(1, id);
                     int deleted = pstmt.executeUpdate();
@@ -369,7 +369,7 @@ public class ProductsPanel extends JPanel {
                 }
                 
                 // 2. Delete invoice details
-                String deleteInvoiceDetails = "DELETE FROM dettagli_fattura WHERE prodotto_id = ?";
+                String deleteInvoiceDetails = "DELETE FROM invoice_details WHERE product_id = ?";
                 try (PreparedStatement pstmt = conn.prepareStatement(deleteInvoiceDetails)) {
                     pstmt.setInt(1, id);
                     int deleted = pstmt.executeUpdate();
@@ -377,7 +377,7 @@ public class ProductsPanel extends JPanel {
                 }
                 
                 // 3. Delete supplier order details
-                String deleteSupplierOrderDetails = "DELETE FROM dettagli_ordini_fornitori WHERE prodotto_id = ?";
+                String deleteSupplierOrderDetails = "DELETE FROM supplier_order_details WHERE product_id = ?";
                 try (PreparedStatement pstmt = conn.prepareStatement(deleteSupplierOrderDetails)) {
                     pstmt.setInt(1, id);
                     int deleted = pstmt.executeUpdate();
@@ -385,7 +385,7 @@ public class ProductsPanel extends JPanel {
                 }
                 
                 // 4. Delete price lists
-                String deletePriceLists = "DELETE FROM listini_fornitori WHERE prodotto_id = ?";
+                String deletePriceLists = "DELETE FROM supplier_price_lists WHERE product_id = ?";
                 try (PreparedStatement pstmt = conn.prepareStatement(deletePriceLists)) {
                     pstmt.setInt(1, id);
                     int deleted = pstmt.executeUpdate();
@@ -393,7 +393,7 @@ public class ProductsPanel extends JPanel {
                 }
                 
                 // 5. Delete warehouse movements
-                String deleteWarehouseMovements = "DELETE FROM movimenti_magazzino WHERE prodotto_id = ?";
+                String deleteWarehouseMovements = "DELETE FROM warehouse_movements WHERE product_id = ?";
                 try (PreparedStatement pstmt = conn.prepareStatement(deleteWarehouseMovements)) {
                     pstmt.setInt(1, id);
                     int deleted = pstmt.executeUpdate();
@@ -401,7 +401,7 @@ public class ProductsPanel extends JPanel {
                 }
                 
                 // 6. Delete warehouse notifications
-                String deleteNotifications = "DELETE FROM notifiche_magazzino WHERE prodotto_id = ?";
+                String deleteNotifications = "DELETE FROM warehouse_notifications WHERE product_id = ?";
                 try (PreparedStatement pstmt = conn.prepareStatement(deleteNotifications)) {
                     pstmt.setInt(1, id);
                     int deleted = pstmt.executeUpdate();
@@ -409,7 +409,7 @@ public class ProductsPanel extends JPanel {
                 }
                 
                 // 7. Delete minimum stock settings
-                String deleteMinStock = "DELETE FROM scorte_minime WHERE prodotto_id = ?";
+                String deleteMinStock = "DELETE FROM minimum_stock WHERE product_id = ?";
                 try (PreparedStatement pstmt = conn.prepareStatement(deleteMinStock)) {
                     pstmt.setInt(1, id);
                     int deleted = pstmt.executeUpdate();
@@ -448,7 +448,7 @@ public class ProductsPanel extends JPanel {
     }
     
     private boolean hasProductInOrders(Connection conn, int productId) throws SQLException {
-        String query = "SELECT COUNT(*) FROM dettagli_ordine WHERE prodotto_id = ?";
+        String query = "SELECT COUNT(*) FROM order_details WHERE product_id = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, productId);
             ResultSet rs = pstmt.executeQuery();
@@ -457,7 +457,7 @@ public class ProductsPanel extends JPanel {
     }
 
     private boolean hasProductInInvoices(Connection conn, int productId) throws SQLException {
-        String query = "SELECT COUNT(*) FROM dettagli_fattura WHERE prodotto_id = ?";
+        String query = "SELECT COUNT(*) FROM invoice_details WHERE product_id = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, productId);
             ResultSet rs = pstmt.executeQuery();
@@ -466,7 +466,7 @@ public class ProductsPanel extends JPanel {
     }
 
     private boolean hasProductInSupplierOrders(Connection conn, int productId) throws SQLException {
-        String query = "SELECT COUNT(*) FROM dettagli_ordini_fornitori WHERE prodotto_id = ?";
+        String query = "SELECT COUNT(*) FROM supplier_order_details WHERE product_id = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, productId);
             ResultSet rs = pstmt.executeQuery();
@@ -475,7 +475,7 @@ public class ProductsPanel extends JPanel {
     }
 
     private boolean hasProductInPriceLists(Connection conn, int productId) throws SQLException {
-        String query = "SELECT COUNT(*) FROM listini_fornitori WHERE prodotto_id = ?";
+        String query = "SELECT COUNT(*) FROM supplier_price_lists WHERE product_id = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, productId);
             ResultSet rs = pstmt.executeQuery();
@@ -484,7 +484,7 @@ public class ProductsPanel extends JPanel {
     }
 
     private boolean hasProductInWarehouseMovements(Connection conn, int productId) throws SQLException {
-        String query = "SELECT COUNT(*) FROM movimenti_magazzino WHERE prodotto_id = ?";
+        String query = "SELECT COUNT(*) FROM warehouse_movements WHERE product_id = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, productId);
             ResultSet rs = pstmt.executeQuery();
@@ -493,7 +493,7 @@ public class ProductsPanel extends JPanel {
     }
 
     private boolean hasProductInMinStock(Connection conn, int productId) throws SQLException {
-        String query = "SELECT COUNT(*) FROM scorte_minime WHERE prodotto_id = ?";
+        String query = "SELECT COUNT(*) FROM minimum_stock WHERE product_id = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, productId);
             ResultSet rs = pstmt.executeQuery();

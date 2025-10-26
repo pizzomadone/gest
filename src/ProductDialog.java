@@ -225,7 +225,7 @@ public class ProductDialog extends JDialog {
     private void loadSupplierById(Integer supplierId) {
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
-            String query = "SELECT * FROM fornitori WHERE id = ?";
+            String query = "SELECT * FROM suppliers WHERE id = ?";
             try (PreparedStatement pstmt = conn.prepareStatement(query)) {
                 pstmt.setInt(1, supplierId);
                 try (ResultSet rs = pstmt.executeQuery()) {
