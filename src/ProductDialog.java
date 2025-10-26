@@ -136,7 +136,7 @@ public class ProductDialog extends JDialog {
         formPanel.add(new JLabel("Unit of Measure:"), gbc);
 
         gbc.gridx = 1;
-        String[] units = {"pz", "kg", "m", "litri", "box", "pack"};
+        String[] units = {"pcs", "kg", "m", "liters", "box", "pack"};
         unitOfMeasureComboBox = new JComboBox<>(units);
         unitOfMeasureComboBox.setEditable(true);
         formPanel.add(unitOfMeasureComboBox, gbc);
@@ -225,22 +225,22 @@ public class ProductDialog extends JDialog {
     private void loadSupplierById(Integer supplierId) {
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
-            String query = "SELECT * FROM fornitori WHERE id = ?";
+            String query = "SELECT * FROM suppliers WHERE id = ?";
             try (PreparedStatement pstmt = conn.prepareStatement(query)) {
                 pstmt.setInt(1, supplierId);
                 try (ResultSet rs = pstmt.executeQuery()) {
                     if (rs.next()) {
                         selectedSupplier = new Supplier(
                             rs.getInt("id"),
-                            rs.getString("ragione_sociale"),
-                            rs.getString("partita_iva"),
-                            rs.getString("codice_fiscale"),
-                            rs.getString("indirizzo"),
-                            rs.getString("telefono"),
+                            rs.getString("company_name"),
+                            rs.getString("vat_number"),
+                            rs.getString("tax_code"),
+                            rs.getString("address"),
+                            rs.getString("phone"),
                             rs.getString("email"),
-                            rs.getString("pec"),
-                            rs.getString("sito_web"),
-                            rs.getString("note")
+                            rs.getString("certified_email"),
+                            rs.getString("website"),
+                            rs.getString("notes")
                         );
                         updateSupplierButton();
                     }
