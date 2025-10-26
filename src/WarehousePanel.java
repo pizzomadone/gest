@@ -82,18 +82,18 @@ public class WarehousePanel extends JPanel {
     
     private JPanel createMovementsPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        
+
         // Filters
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JTextField searchField = new JTextField(20);
         JButton searchButton = new JButton("Search");
-        
+
         filterPanel.add(new JLabel("Search:"));
         filterPanel.add(searchField);
         filterPanel.add(searchButton);
-        
-        // Movements table
-        String[] columns = {"Date", "Product", "Type", "Quantity", "Reason", "Document", "Notes"};
+
+        // Movements table (ID hidden in column 0)
+        String[] columns = {"ID", "Date", "Product", "Type", "Quantity", "Reason", "Document", "Notes"};
         movementsModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -101,12 +101,45 @@ public class WarehousePanel extends JPanel {
             }
         };
         movementsTable = new JTable(movementsModel);
-        
+
+        // Hide ID column
+        movementsTable.getColumnModel().getColumn(0).setMinWidth(0);
+        movementsTable.getColumnModel().getColumn(0).setMaxWidth(0);
+        movementsTable.getColumnModel().getColumn(0).setWidth(0);
+
+        // Double click to edit
+        movementsTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                if (evt.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(evt)) {
+                    editSelectedMovement();
+                }
+            }
+        });
+
         searchButton.addActionListener(e -> searchMovements(searchField.getText()));
-        
+
+        // Buttons panel
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        JButton newButton = new JButton("New Movement");
+        JButton editButton = new JButton("Edit");
+        JButton deleteButton = new JButton("Delete");
+        JButton refreshButton = new JButton("Refresh");
+
+        newButton.addActionListener(e -> showMovementDialog(null));
+        editButton.addActionListener(e -> editSelectedMovement());
+        deleteButton.addActionListener(e -> deleteSelectedMovement());
+        refreshButton.addActionListener(e -> loadMovementsData());
+
+        buttonPanel.add(newButton);
+        buttonPanel.add(editButton);
+        buttonPanel.add(deleteButton);
+        buttonPanel.add(refreshButton);
+
         panel.add(filterPanel, BorderLayout.NORTH);
         panel.add(new JScrollPane(movementsTable), BorderLayout.CENTER);
-        
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
         return panel;
     }
     
@@ -224,25 +257,28 @@ public class WarehousePanel extends JPanel {
                  ResultSet rs = stmt.executeQuery(query)) {
                 while (rs.next()) {
                     Vector<Object> row = new Vector<>();
-                    
+
+                    // ID (hidden column)
+                    row.add(rs.getInt("id"));
+
                     Date movementDate = DateUtils.parseDate(rs, "data");
                     if (movementDate != null) {
                         row.add(DateUtils.formatDate(movementDate, dateFormat));
                     } else {
                         row.add("");
                     }
-                    
+
                     row.add(rs.getString("prodotto_nome"));
                     row.add(rs.getString("tipo"));
                     row.add(rs.getInt("quantita"));
                     row.add(rs.getString("causale"));
-                    
+
                     String document = rs.getString("documento_tipo");
                     if (document != null && !document.isEmpty()) {
                         document += " " + rs.getString("documento_numero");
                     }
                     row.add(document);
-                    
+
                     row.add(rs.getString("note"));
                     movementsModel.addRow(row);
                 }
@@ -598,5 +634,125 @@ public class WarehousePanel extends JPanel {
         return new MinimumStock(
             0, "", 0, 0, 0, null, null, ""
         );
+    }
+
+    private void editSelectedMovement() {
+        int selectedRow = movementsTable.getSelectedRow();
+        if (selectedRow != -1) {
+            int movementId = (int)movementsModel.getValueAt(selectedRow, 0);
+
+            try {
+                Connection conn = DatabaseManager.getInstance().getConnection();
+                String query = "SELECT * FROM movimenti_magazzino WHERE id = ?";
+
+                try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                    pstmt.setInt(1, movementId);
+                    ResultSet rs = pstmt.executeQuery();
+
+                    if (rs.next()) {
+                        WarehouseMovement movement = new WarehouseMovement(
+                            rs.getInt("id"),
+                            rs.getInt("prodotto_id"),
+                            DateUtils.parseDate(rs, "data"),
+                            rs.getString("tipo"),
+                            rs.getInt("quantita"),
+                            rs.getString("causale"),
+                            rs.getString("documento_numero"),
+                            rs.getString("documento_tipo"),
+                            rs.getString("note")
+                        );
+
+                        showMovementDialog(movement);
+                    }
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(this,
+                    "Error loading movement: " + e.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void deleteSelectedMovement() {
+        int selectedRow = movementsTable.getSelectedRow();
+        if (selectedRow != -1) {
+            int movementId = (int)movementsModel.getValueAt(selectedRow, 0);
+            String product = (String)movementsModel.getValueAt(selectedRow, 2);
+            String type = (String)movementsModel.getValueAt(selectedRow, 3);
+            int quantity = (int)movementsModel.getValueAt(selectedRow, 4);
+
+            int result = JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to delete this movement?\n\n" +
+                "Product: " + product + "\n" +
+                "Type: " + type + "\n" +
+                "Quantity: " + quantity + "\n\n" +
+                "Stock will be adjusted accordingly.",
+                "Confirm Deletion",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+
+            if (result == JOptionPane.YES_OPTION) {
+                try {
+                    Connection conn = DatabaseManager.getInstance().getConnection();
+                    conn.setAutoCommit(false);
+
+                    try {
+                        // Get movement details to restore stock
+                        int productId = 0;
+                        String movementType = "";
+                        int movementQuantity = 0;
+
+                        String getMovementQuery = "SELECT prodotto_id, tipo, quantita FROM movimenti_magazzino WHERE id = ?";
+                        try (PreparedStatement pstmt = conn.prepareStatement(getMovementQuery)) {
+                            pstmt.setInt(1, movementId);
+                            ResultSet rs = pstmt.executeQuery();
+                            if (rs.next()) {
+                                productId = rs.getInt("prodotto_id");
+                                movementType = rs.getString("tipo");
+                                movementQuantity = rs.getInt("quantita");
+                            }
+                        }
+
+                        // Reverse the stock movement
+                        if (productId > 0) {
+                            String updateStockQuery = "UPDATE prodotti SET quantita = quantita + ? WHERE id = ?";
+                            try (PreparedStatement pstmt = conn.prepareStatement(updateStockQuery)) {
+                                int quantityDelta = "INWARD".equals(movementType) ? -movementQuantity : movementQuantity;
+                                pstmt.setInt(1, quantityDelta);
+                                pstmt.setInt(2, productId);
+                                pstmt.executeUpdate();
+                            }
+                        }
+
+                        // Delete the movement
+                        String deleteQuery = "DELETE FROM movimenti_magazzino WHERE id = ?";
+                        try (PreparedStatement pstmt = conn.prepareStatement(deleteQuery)) {
+                            pstmt.setInt(1, movementId);
+                            pstmt.executeUpdate();
+                        }
+
+                        conn.commit();
+                        loadMovementsData();
+                        loadStockData();
+
+                        JOptionPane.showMessageDialog(this,
+                            "Movement deleted successfully!\nStock has been adjusted.",
+                            "Success", JOptionPane.INFORMATION_MESSAGE);
+
+                    } catch (SQLException e) {
+                        conn.rollback();
+                        throw e;
+                    } finally {
+                        conn.setAutoCommit(true);
+                    }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    JOptionPane.showMessageDialog(this,
+                        "Error deleting movement: " + e.getMessage(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }
     }
 }

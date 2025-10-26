@@ -431,43 +431,67 @@ public class InvoicesPanel extends JPanel {
         if (selectedRow != -1) {
             String numero = (String)tableModel.getValueAt(selectedRow, 0);
             String cliente = (String)tableModel.getValueAt(selectedRow, 2);
-            
+            String status = (String)tableModel.getValueAt(selectedRow, 6);
+
             int result = JOptionPane.showConfirmDialog(this,
-                "Are you sure you want to delete invoice " + numero + " from customer " + cliente + "?",
+                "Are you sure you want to delete invoice " + numero + " from customer " + cliente + "?\n" +
+                "Status: " + status + "\n" +
+                (status.equals("Issued") || status.equals("Paid") ? "Stock will be restored." : "No stock changes."),
                 "Confirm Deletion",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.WARNING_MESSAGE);
-                
+
             if (result == JOptionPane.YES_OPTION) {
                 try {
                     Connection conn = DatabaseManager.getInstance().getConnection();
                     conn.setAutoCommit(false);
-                    
+
                     try {
-                        // First, delete the invoice details
-                        String deleteDetailsQuery = "DELETE FROM dettagli_fattura WHERE fattura_id = (SELECT id FROM fatture WHERE numero = ?)";
+                        // Get invoice ID
+                        int invoiceId = 0;
+                        String getIdQuery = "SELECT id FROM fatture WHERE numero = ?";
+                        try (PreparedStatement pstmt = conn.prepareStatement(getIdQuery)) {
+                            pstmt.setString(1, numero);
+                            ResultSet rs = pstmt.executeQuery();
+                            if (rs.next()) {
+                                invoiceId = rs.getInt("id");
+                            }
+                        }
+
+                        // Restore stock based on invoice status
+                        if (invoiceId > 0) {
+                            StockManager.deleteInvoice(conn, invoiceId, numero, status);
+                        }
+
+                        // Delete the invoice details
+                        String deleteDetailsQuery = "DELETE FROM dettagli_fattura WHERE fattura_id = ?";
                         try (PreparedStatement pstmt = conn.prepareStatement(deleteDetailsQuery)) {
-                            pstmt.setString(1, numero);
+                            pstmt.setInt(1, invoiceId);
                             pstmt.executeUpdate();
                         }
-                        
-                        // Then, delete the invoice
-                        String deleteInvoiceQuery = "DELETE FROM fatture WHERE numero = ?";
+
+                        // Delete the invoice
+                        String deleteInvoiceQuery = "DELETE FROM fatture WHERE id = ?";
                         try (PreparedStatement pstmt = conn.prepareStatement(deleteInvoiceQuery)) {
-                            pstmt.setString(1, numero);
+                            pstmt.setInt(1, invoiceId);
                             pstmt.executeUpdate();
                         }
-                        
+
                         conn.commit();
                         loadInvoices();
-                        
+
+                        JOptionPane.showMessageDialog(this,
+                            "Invoice deleted successfully!" +
+                            (status.equals("Issued") || status.equals("Paid") ? "\nStock has been restored." : ""),
+                            "Success", JOptionPane.INFORMATION_MESSAGE);
+
                     } catch (SQLException e) {
                         conn.rollback();
                         throw e;
                     } finally {
                         conn.setAutoCommit(true);
                     }
-                    
+
                 } catch (SQLException e) {
                     e.printStackTrace();
                     JOptionPane.showMessageDialog(this,

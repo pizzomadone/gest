@@ -374,6 +374,54 @@ public class StockManager {
         return 0;
     }
 
+    /**
+     * Delete an order and restore stock based on its status
+     * Handles: restoring stock if Completed, cancelling reservations if In Progress
+     */
+    public static void deleteOrder(Connection conn, int orderId, String orderStatus) throws SQLException {
+        // If order was Completed, restore stock
+        if ("Completed".equals(orderStatus)) {
+            restoreStockFromDocument(conn, orderId, "ORDER");
+        }
+
+        // If order was In Progress, cancel active reservations
+        if ("In Progress".equals(orderStatus)) {
+            cancelReservation(conn, "ORDER", orderId);
+        }
+
+        // Delete warehouse movements related to this order
+        deleteWarehouseMovements(conn, "ORDER", String.valueOf(orderId));
+    }
+
+    /**
+     * Delete an invoice and restore stock based on its status
+     */
+    public static void deleteInvoice(Connection conn, int invoiceId, String invoiceNumber, String invoiceStatus) throws SQLException {
+        // If invoice was Issued or Paid, restore stock
+        if ("Issued".equals(invoiceStatus) || "Paid".equals(invoiceStatus)) {
+            restoreStockFromDocument(conn, invoiceId, "INVOICE");
+        }
+
+        // Delete warehouse movements related to this invoice
+        deleteWarehouseMovements(conn, "INVOICE", invoiceNumber);
+    }
+
+    /**
+     * Delete warehouse movements for a specific document
+     */
+    public static void deleteWarehouseMovements(Connection conn, String documentType, String documentNumber) throws SQLException {
+        String deleteQuery = """
+            DELETE FROM movimenti_magazzino
+            WHERE documento_tipo = ? AND documento_numero = ?
+        """;
+
+        try (PreparedStatement pstmt = conn.prepareStatement(deleteQuery)) {
+            pstmt.setString(1, documentType);
+            pstmt.setString(2, documentNumber);
+            pstmt.executeUpdate();
+        }
+    }
+
     // Helper classes
 
     public static class StockItem {
