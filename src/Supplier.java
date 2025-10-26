@@ -2,52 +2,52 @@
 // File: Supplier.java
 public class Supplier {
     private int id;
-    private String ragioneSociale;
-    private String partitaIva;
-    private String codiceFiscale;
-    private String indirizzo;
-    private String telefono;
+    private String companyName;
+    private String vatNumber;
+    private String taxCode;
+    private String address;
+    private String phone;
     private String email;
-    private String pec;
-    private String sitoWeb;
-    private String note;
-    
-    public Supplier(int id, String ragioneSociale, String partitaIva, String codiceFiscale,
-                   String indirizzo, String telefono, String email, String pec, 
-                   String sitoWeb, String note) {
+    private String certifiedEmail;
+    private String website;
+    private String notes;
+
+    public Supplier(int id, String companyName, String vatNumber, String taxCode,
+                   String address, String phone, String email, String certifiedEmail,
+                   String website, String notes) {
         this.id = id;
-        this.ragioneSociale = ragioneSociale;
-        this.partitaIva = partitaIva;
-        this.codiceFiscale = codiceFiscale;
-        this.indirizzo = indirizzo;
-        this.telefono = telefono;
+        this.companyName = companyName;
+        this.vatNumber = vatNumber;
+        this.taxCode = taxCode;
+        this.address = address;
+        this.phone = phone;
         this.email = email;
-        this.pec = pec;
-        this.sitoWeb = sitoWeb;
-        this.note = note;
+        this.certifiedEmail = certifiedEmail;
+        this.website = website;
+        this.notes = notes;
     }
-    
+
     // Getters
     public int getId() { return id; }
-    public String getRagioneSociale() { return ragioneSociale; }
-    public String getPartitaIva() { return partitaIva; }
-    public String getCodiceFiscale() { return codiceFiscale; }
-    public String getIndirizzo() { return indirizzo; }
-    public String getTelefono() { return telefono; }
+    public String getCompanyName() { return companyName; }
+    public String getVatNumber() { return vatNumber; }
+    public String getTaxCode() { return taxCode; }
+    public String getAddress() { return address; }
+    public String getPhone() { return phone; }
     public String getEmail() { return email; }
-    public String getPec() { return pec; }
-    public String getSitoWeb() { return sitoWeb; }
-    public String getNote() { return note; }
-    
+    public String getCertifiedEmail() { return certifiedEmail; }
+    public String getWebsite() { return website; }
+    public String getNotes() { return notes; }
+
     // Setters
     public void setId(int id) { this.id = id; }
-    public void setRagioneSociale(String ragioneSociale) { this.ragioneSociale = ragioneSociale; }
-    public void setPartitaIva(String partitaIva) { this.partitaIva = partitaIva; }
-    public void setCodiceFiscale(String codiceFiscale) { this.codiceFiscale = codiceFiscale; }
-    public void setIndirizzo(String indirizzo) { this.indirizzo = indirizzo; }
-    public void setTelefono(String telefono) { this.telefono = telefono; }
+    public void setCompanyName(String companyName) { this.companyName = companyName; }
+    public void setVatNumber(String vatNumber) { this.vatNumber = vatNumber; }
+    public void setTaxCode(String taxCode) { this.taxCode = taxCode; }
+    public void setAddress(String address) { this.address = address; }
+    public void setPhone(String phone) { this.phone = phone; }
     public void setEmail(String email) { this.email = email; }
-    public void setPec(String pec) { this.pec = pec; }
-    public void setSitoWeb(String sitoWeb) { this.sitoWeb = sitoWeb; }
-    public void setNote(String note) { this.note = note; }
+    public void setCertifiedEmail(String certifiedEmail) { this.certifiedEmail = certifiedEmail; }
+    public void setWebsite(String website) { this.website = website; }
+    public void setNotes(String notes) { this.notes = notes; }
 }

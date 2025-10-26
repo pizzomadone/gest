@@ -1,11 +1,11 @@
 // File: Product.java
 public class Product {
     private int id;
-    private String codice;
-    private String nome;
-    private String descrizione;
-    private double prezzo;
-    private int quantita;
+    private String code;
+    private String name;
+    private String description;
+    private double price;
+    private int quantity;
 
     // Category & Management
     private String category;
@@ -24,17 +24,17 @@ public class Product {
     private Integer supplierId;
     private String supplierName; // For display purposes
 
-    public Product(int id, String codice, String nome, String descrizione, double prezzo, int quantita) {
+    public Product(int id, String code, String name, String description, double price, int quantity) {
         this.id = id;
-        this.codice = codice;
-        this.nome = nome;
-        this.descrizione = descrizione;
-        this.prezzo = prezzo;
-        this.quantita = quantita;
+        this.code = code;
+        this.name = name;
+        this.description = description;
+        this.price = price;
+        this.quantity = quantity;
         this.category = "";
         this.alternativeSku = "";
         this.weight = 0.0;
-        this.unitOfMeasure = "pz";
+        this.unitOfMeasure = "pcs";
         this.minimumQuantity = 0;
         this.acquisitionCost = 0.0;
         this.active = true;
@@ -42,15 +42,15 @@ public class Product {
         this.supplierName = "";
     }
 
-    public Product(int id, String codice, String nome, String descrizione, double prezzo, int quantita,
+    public Product(int id, String code, String name, String description, double price, int quantity,
                    String category, String alternativeSku, double weight, String unitOfMeasure,
                    int minimumQuantity, double acquisitionCost, boolean active, Integer supplierId, String supplierName) {
         this.id = id;
-        this.codice = codice;
-        this.nome = nome;
-        this.descrizione = descrizione;
-        this.prezzo = prezzo;
-        this.quantita = quantita;
+        this.code = code;
+        this.name = name;
+        this.description = description;
+        this.price = price;
+        this.quantity = quantity;
         this.category = category;
         this.alternativeSku = alternativeSku;
         this.weight = weight;
@@ -64,11 +64,11 @@ public class Product {
 
     // Getters
     public int getId() { return id; }
-    public String getCodice() { return codice; }
-    public String getNome() { return nome; }
-    public String getDescrizione() { return descrizione; }
-    public double getPrezzo() { return prezzo; }
-    public int getQuantita() { return quantita; }
+    public String getCode() { return code; }
+    public String getName() { return name; }
+    public String getDescription() { return description; }
+    public double getPrice() { return price; }
+    public int getQuantity() { return quantity; }
     public String getCategory() { return category; }
     public String getAlternativeSku() { return alternativeSku; }
     public double getWeight() { return weight; }
@@ -81,11 +81,11 @@ public class Product {
 
     // Setters
     public void setId(int id) { this.id = id; }
-    public void setCodice(String codice) { this.codice = codice; }
-    public void setNome(String nome) { this.nome = nome; }
-    public void setDescrizione(String descrizione) { this.descrizione = descrizione; }
-    public void setPrezzo(double prezzo) { this.prezzo = prezzo; }
-    public void setQuantita(int quantita) { this.quantita = quantita; }
+    public void setCode(String code) { this.code = code; }
+    public void setName(String name) { this.name = name; }
+    public void setDescription(String description) { this.description = description; }
+    public void setPrice(double price) { this.price = price; }
+    public void setQuantity(int quantity) { this.quantity = quantity; }
     public void setCategory(String category) { this.category = category; }
     public void setAlternativeSku(String alternativeSku) { this.alternativeSku = alternativeSku; }
     public void setWeight(double weight) { this.weight = weight; }

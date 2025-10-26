@@ -16,32 +16,32 @@ public class InvoicesPanel extends JPanel {
     private JButton generatePDFButton;
     private JButton refreshButton;
     private SimpleDateFormat dateFormat;
-    
+
     public InvoicesPanel() {
         dateFormat = new SimpleDateFormat("dd/MM/yyyy");
         setupPanel();
         initComponents();
         loadInvoices();
     }
-    
+
     private void setupPanel() {
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
     }
-    
+
     private void initComponents() {
         // Search Panel
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         searchPanel.setBorder(BorderFactory.createTitledBorder("Search Invoices"));
-        
+
         searchField = new JTextField(25);
         JButton searchButton = new JButton("Search");
         searchButton.addActionListener(e -> searchInvoices());
-        
+
         searchPanel.add(new JLabel("Search: "));
         searchPanel.add(searchField);
         searchPanel.add(searchButton);
-        
+
         // Invoices table
         String[] columns = {"Number", "Date", "Customer", "Taxable Amount", "VAT", "Total", "Status"};
         tableModel = new DefaultTableModel(columns, 0) {
@@ -52,7 +52,7 @@ public class InvoicesPanel extends JPanel {
         };
         invoicesTable = new JTable(tableModel);
         invoicesTable.getSelectionModel().addListSelectionListener(e -> updateButtonStates());
-        
+
         // Double-click listener
         invoicesTable.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
@@ -65,7 +65,7 @@ public class InvoicesPanel extends JPanel {
                 }
             }
         });
-        
+
         // Buttons panel
         JPanel buttonPanel = new JPanel(new FlowLayout());
         addButton = new JButton("New Invoice");
@@ -73,76 +73,76 @@ public class InvoicesPanel extends JPanel {
         deleteButton = new JButton("Delete");
         generatePDFButton = new JButton("Generate Invoice");
         refreshButton = new JButton("Refresh");
-        
+
         generatePDFButton.setFont(generatePDFButton.getFont().deriveFont(Font.BOLD));
         generatePDFButton.setPreferredSize(new Dimension(150, 30));
         generatePDFButton.setOpaque(true);
-        
+
         addButton.addActionListener(e -> createNewInvoice());
         editButton.addActionListener(e -> editSelectedInvoice());
         deleteButton.addActionListener(e -> deleteSelectedInvoice());
         generatePDFButton.addActionListener(e -> generateSelectedInvoicePDF());
         refreshButton.addActionListener(e -> loadInvoices());
-        
+
         buttonPanel.add(addButton);
         buttonPanel.add(editButton);
         buttonPanel.add(deleteButton);
         buttonPanel.add(generatePDFButton);
         buttonPanel.add(refreshButton);
-        
+
         // Main layout
         add(searchPanel, BorderLayout.NORTH);
         add(new JScrollPane(invoicesTable), BorderLayout.CENTER);
         add(buttonPanel, BorderLayout.SOUTH);
-        
+
         updateButtonStates();
     }
-    
+
     private void updateButtonStates() {
         boolean isRowSelected = invoicesTable.getSelectedRow() != -1;
         editButton.setEnabled(isRowSelected);
         deleteButton.setEnabled(isRowSelected);
         generatePDFButton.setEnabled(isRowSelected);
     }
-    
+
     private void loadInvoices() {
         tableModel.setRowCount(0);
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
             String query = """
-                SELECT f.numero, f.data, f.cliente_id, f.stato,
-                       c.nome || ' ' || c.cognome as cliente_nome
-                FROM fatture f
-                LEFT JOIN clienti c ON f.cliente_id = c.id
-                ORDER BY f.data DESC
+                SELECT i.number, i.date, i.customer_id, i.status,
+                       c.first_name || ' ' || c.last_name as customer_name
+                FROM invoices i
+                LEFT JOIN customers c ON i.customer_id = c.id
+                ORDER BY i.date DESC
             """;
-            
+
             try (Statement stmt = conn.createStatement();
                  ResultSet rs = stmt.executeQuery(query)) {
                 while (rs.next()) {
-                    String numero = rs.getString("numero");
-                    
+                    String number = rs.getString("number");
+
                     // Recalculate totals from details
-                    double[] totals = recalculateInvoiceTotals(numero);
-                    double imponibile = totals[0];
-                    double iva = totals[1];
-                    double totale = totals[2];
-                    
+                    double[] totals = recalculateInvoiceTotals(number);
+                    double taxableAmount = totals[0];
+                    double vat = totals[1];
+                    double total = totals[2];
+
                     Vector<Object> row = new Vector<>();
-                    row.add(numero);
-                    
-                    Date date = DateUtils.parseDate(rs, "data");
+                    row.add(number);
+
+                    Date date = DateUtils.parseDate(rs, "date");
                     if (date != null) {
                         row.add(DateUtils.formatDate(date, dateFormat));
                     } else {
                         row.add("");
                     }
-                    
-                    row.add(rs.getString("cliente_nome"));
-                    row.add(String.format("%.2f €", imponibile));
-                    row.add(String.format("%.2f €", iva));
-                    row.add(String.format("%.2f €", totale));
-                    row.add(rs.getString("stato"));
+
+                    row.add(rs.getString("customer_name"));
+                    row.add(String.format("%.2f €", taxableAmount));
+                    row.add(String.format("%.2f €", vat));
+                    row.add(String.format("%.2f €", total));
+                    row.add(rs.getString("status"));
                     tableModel.addRow(row);
                 }
             }
@@ -153,80 +153,80 @@ public class InvoicesPanel extends JPanel {
                 "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-    
-    private double[] recalculateInvoiceTotals(String numeroFattura) throws SQLException {
+
+    private double[] recalculateInvoiceTotals(String invoiceNumber) throws SQLException {
         Connection conn = DatabaseManager.getInstance().getConnection();
         String query = """
-            SELECT SUM(d.quantita * d.prezzo_unitario) as imponibile_calc,
-                   SUM(d.quantita * d.prezzo_unitario * d.aliquota_iva / 100) as iva_calc
-            FROM dettagli_fattura d
-            WHERE d.fattura_id = (SELECT id FROM fatture WHERE numero = ?)
+            SELECT SUM(d.quantity * d.unit_price) as taxable_amount_calc,
+                   SUM(d.quantity * d.unit_price * d.vat_rate / 100) as vat_calc
+            FROM invoice_details d
+            WHERE d.invoice_id = (SELECT id FROM invoices WHERE number = ?)
         """;
-        
+
         try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-            pstmt.setString(1, numeroFattura);
+            pstmt.setString(1, invoiceNumber);
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
-                double imponibile = rs.getDouble("imponibile_calc");
-                double iva = rs.getDouble("iva_calc");
-                double totale = imponibile + iva;
-                return new double[]{imponibile, iva, totale};
+                double taxableAmount = rs.getDouble("taxable_amount_calc");
+                double vat = rs.getDouble("vat_calc");
+                double total = taxableAmount + vat;
+                return new double[]{taxableAmount, vat, total};
             }
         }
         return new double[]{0.0, 0.0, 0.0};
     }
-    
+
     private void searchInvoices() {
         String searchTerm = searchField.getText().trim();
         if (searchTerm.isEmpty()) {
             loadInvoices();
             return;
         }
-        
+
         tableModel.setRowCount(0);
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
             String query = """
-                SELECT f.numero, f.data, f.cliente_id, f.stato,
-                       c.nome || ' ' || c.cognome as cliente_nome
-                FROM fatture f
-                LEFT JOIN clienti c ON f.cliente_id = c.id
-                WHERE f.numero LIKE ? 
-                   OR c.nome LIKE ? 
-                   OR c.cognome LIKE ?
-                   OR (c.nome || ' ' || c.cognome) LIKE ?
-                ORDER BY f.data DESC
+                SELECT i.number, i.date, i.customer_id, i.status,
+                       c.first_name || ' ' || c.last_name as customer_name
+                FROM invoices i
+                LEFT JOIN customers c ON i.customer_id = c.id
+                WHERE i.number LIKE ?
+                   OR c.first_name LIKE ?
+                   OR c.last_name LIKE ?
+                   OR (c.first_name || ' ' || c.last_name) LIKE ?
+                ORDER BY i.date DESC
             """;
-            
+
             String searchPattern = "%" + searchTerm + "%";
             try (PreparedStatement pstmt = conn.prepareStatement(query)) {
                 pstmt.setString(1, searchPattern);
                 pstmt.setString(2, searchPattern);
                 pstmt.setString(3, searchPattern);
                 pstmt.setString(4, searchPattern);
-                
+
                 try (ResultSet rs = pstmt.executeQuery()) {
                     while (rs.next()) {
-                        String numero = rs.getString("numero");
-                        
+                        String number = rs.getString("number");
+
                         // Recalculate totals
-                        double[] totals = recalculateInvoiceTotals(numero);
-                        
+                        double[] totals = recalculateInvoiceTotals(number);
+
                         Vector<Object> row = new Vector<>();
-                        row.add(numero);
-                        
-                        Date date = DateUtils.parseDate(rs, "data");
+                        row.add(number);
+
+                        Date date = DateUtils.parseDate(rs, "date");
                         if (date != null) {
                             row.add(DateUtils.formatDate(date, dateFormat));
                         } else {
                             row.add("");
                         }
-                        
-                        row.add(rs.getString("cliente_nome"));
+
+                        row.add(rs.getString("customer_name"));
                         row.add(String.format("%.2f €", totals[0]));
                         row.add(String.format("%.2f €", totals[1]));
                         row.add(String.format("%.2f €", totals[2]));
-                        row.add(rs.getString("stato"));
+                        row.add(rs.getString("status"));
                         tableModel.addRow(row);
                     }
                 }
@@ -238,18 +238,18 @@ public class InvoicesPanel extends JPanel {
                 "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-    
+
     private void createNewInvoice() {
         try {
             Window parentWindow = SwingUtilities.getWindowAncestor(this);
-            
+
             InvoiceDialog dialog;
             if (parentWindow instanceof JFrame) {
                 dialog = new InvoiceDialog((JFrame) parentWindow, null);
             } else {
                 dialog = new InvoiceDialog((JDialog) parentWindow, null);
             }
-            
+
             dialog.setVisible(true);
             if (dialog.isInvoiceSaved()) {
                 loadInvoices();
@@ -261,23 +261,23 @@ public class InvoicesPanel extends JPanel {
                 "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-    
+
     private void editSelectedInvoice() {
         int selectedRow = invoicesTable.getSelectedRow();
         if (selectedRow != -1) {
             try {
-                String numero = (String)tableModel.getValueAt(selectedRow, 0);
-                Invoice invoice = loadInvoiceByNumber(numero);
+                String number = (String)tableModel.getValueAt(selectedRow, 0);
+                Invoice invoice = loadInvoiceByNumber(number);
                 if (invoice != null) {
                     Window parentWindow = SwingUtilities.getWindowAncestor(this);
-                    
+
                     InvoiceDialog dialog;
                     if (parentWindow instanceof JFrame) {
                         dialog = new InvoiceDialog((JFrame) parentWindow, invoice);
                     } else {
                         dialog = new InvoiceDialog((JDialog) parentWindow, invoice);
                     }
-                    
+
                     dialog.setVisible(true);
                     if (dialog.isInvoiceSaved()) {
                         loadInvoices();
@@ -291,19 +291,19 @@ public class InvoicesPanel extends JPanel {
             }
         }
     }
-    
+
     private void generateSelectedInvoicePDF() {
         int selectedRow = invoicesTable.getSelectedRow();
         if (selectedRow != -1) {
             try {
-                String numero = (String)tableModel.getValueAt(selectedRow, 0);
-                Invoice invoice = loadInvoiceByNumber(numero);
+                String number = (String)tableModel.getValueAt(selectedRow, 0);
+                Invoice invoice = loadInvoiceByNumber(number);
                 Customer customer = loadCustomerByInvoice(invoice);
-                
+
                 if (invoice != null && customer != null) {
                     // Set wait cursor
                     setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-                    
+
                     try {
                         // Generate PDF directly without SwingWorker to avoid blocking
                         InvoicePDFGenerator.generateInvoicePDF(invoice, customer, InvoicesPanel.this);
@@ -311,7 +311,7 @@ public class InvoicesPanel extends JPanel {
                         // Restore default cursor
                         setCursor(Cursor.getDefaultCursor());
                     }
-                    
+
                 } else {
                     JOptionPane.showMessageDialog(this,
                         "Unable to load invoice or customer data",
@@ -326,25 +326,25 @@ public class InvoicesPanel extends JPanel {
             }
         }
     }
-    
+
     private Customer loadCustomerByInvoice(Invoice invoice) {
         if (invoice == null) return null;
-        
+
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
-            String query = "SELECT * FROM clienti WHERE id = ?";
-            
+            String query = "SELECT * FROM customers WHERE id = ?";
+
             try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                pstmt.setInt(1, invoice.getClienteId());
+                pstmt.setInt(1, invoice.getCustomerId());
                 try (ResultSet rs = pstmt.executeQuery()) {
                     if (rs.next()) {
                         return new Customer(
                             rs.getInt("id"),
-                            rs.getString("nome"),
-                            rs.getString("cognome"),
+                            rs.getString("first_name"),
+                            rs.getString("last_name"),
                             rs.getString("email"),
-                            rs.getString("telefono"),
-                            rs.getString("indirizzo")
+                            rs.getString("phone"),
+                            rs.getString("address")
                         );
                     }
                 }
@@ -354,40 +354,40 @@ public class InvoicesPanel extends JPanel {
         }
         return null;
     }
-    
-    private Invoice loadInvoiceByNumber(String numero) throws SQLException {
+
+    private Invoice loadInvoiceByNumber(String number) throws SQLException {
         Connection conn = DatabaseManager.getInstance().getConnection();
         String query = """
-            SELECT f.*, c.nome || ' ' || c.cognome as cliente_nome
-            FROM fatture f
-            LEFT JOIN clienti c ON f.cliente_id = c.id
-            WHERE f.numero = ?
+            SELECT i.*, c.first_name || ' ' || c.last_name as customer_name
+            FROM invoices i
+            LEFT JOIN customers c ON i.customer_id = c.id
+            WHERE i.number = ?
         """;
-        
+
         try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-            pstmt.setString(1, numero);
+            pstmt.setString(1, number);
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    Date date = DateUtils.parseDate(rs, "data");
+                    Date date = DateUtils.parseDate(rs, "date");
                     if (date == null) {
                         date = new Date();
                     }
-                    
+
                     // Recalculate totals
-                    double[] totals = recalculateInvoiceTotals(numero);
-                    
+                    double[] totals = recalculateInvoiceTotals(number);
+
                     Invoice invoice = new Invoice(
                         rs.getInt("id"),
-                        rs.getString("numero"),
+                        rs.getString("number"),
                         date,
-                        rs.getInt("cliente_id"),
-                        rs.getString("cliente_nome"),
-                        totals[0], // imponibile
-                        totals[1], // iva
-                        totals[2], // totale
-                        rs.getString("stato")
+                        rs.getInt("customer_id"),
+                        rs.getString("customer_name"),
+                        totals[0], // taxableAmount
+                        totals[1], // vat
+                        totals[2], // total
+                        rs.getString("status")
                     );
-                    
+
                     loadInvoiceItems(invoice);
                     return invoice;
                 }
@@ -395,15 +395,15 @@ public class InvoicesPanel extends JPanel {
         }
         return null;
     }
-    
+
     private void loadInvoiceItems(Invoice invoice) throws SQLException {
         String query = """
-            SELECT i.*, p.nome as prodotto_nome, p.codice as prodotto_codice
-            FROM dettagli_fattura i
-            LEFT JOIN prodotti p ON i.prodotto_id = p.id
-            WHERE i.fattura_id = ?
+            SELECT i.*, p.name as product_name, p.code as product_code
+            FROM invoice_details i
+            LEFT JOIN products p ON i.product_id = p.id
+            WHERE i.invoice_id = ?
         """;
-        
+
         Connection conn = DatabaseManager.getInstance().getConnection();
         try (PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setInt(1, invoice.getId());
@@ -411,30 +411,30 @@ public class InvoicesPanel extends JPanel {
                 while (rs.next()) {
                     InvoiceItem item = new InvoiceItem(
                         rs.getInt("id"),
-                        rs.getInt("fattura_id"),
-                        rs.getInt("prodotto_id"),
-                        rs.getString("prodotto_nome"),
-                        rs.getString("prodotto_codice"),
-                        rs.getInt("quantita"),
-                        rs.getDouble("prezzo_unitario"),
-                        rs.getDouble("aliquota_iva"),
-                        rs.getDouble("totale")
+                        rs.getInt("invoice_id"),
+                        rs.getInt("product_id"),
+                        rs.getString("product_name"),
+                        rs.getString("product_code"),
+                        rs.getInt("quantity"),
+                        rs.getDouble("unit_price"),
+                        rs.getDouble("vat_rate"),
+                        rs.getDouble("total")
                     );
                     invoice.getItems().add(item);
                 }
             }
         }
     }
-    
+
     private void deleteSelectedInvoice() {
         int selectedRow = invoicesTable.getSelectedRow();
         if (selectedRow != -1) {
-            String numero = (String)tableModel.getValueAt(selectedRow, 0);
-            String cliente = (String)tableModel.getValueAt(selectedRow, 2);
+            String number = (String)tableModel.getValueAt(selectedRow, 0);
+            String customer = (String)tableModel.getValueAt(selectedRow, 2);
             String status = (String)tableModel.getValueAt(selectedRow, 6);
 
             int result = JOptionPane.showConfirmDialog(this,
-                "Are you sure you want to delete invoice " + numero + " from customer " + cliente + "?\n" +
+                "Are you sure you want to delete invoice " + number + " from customer " + customer + "?\n" +
                 "Status: " + status + "\n" +
                 (status.equals("Issued") || status.equals("Paid") ? "Stock will be restored." : "No stock changes."),
                 "Confirm Deletion",
@@ -449,9 +449,9 @@ public class InvoicesPanel extends JPanel {
                     try {
                         // Get invoice ID
                         int invoiceId = 0;
-                        String getIdQuery = "SELECT id FROM fatture WHERE numero = ?";
+                        String getIdQuery = "SELECT id FROM invoices WHERE number = ?";
                         try (PreparedStatement pstmt = conn.prepareStatement(getIdQuery)) {
-                            pstmt.setString(1, numero);
+                            pstmt.setString(1, number);
                             ResultSet rs = pstmt.executeQuery();
                             if (rs.next()) {
                                 invoiceId = rs.getInt("id");
@@ -460,18 +460,18 @@ public class InvoicesPanel extends JPanel {
 
                         // Restore stock based on invoice status
                         if (invoiceId > 0) {
-                            StockManager.deleteInvoice(conn, invoiceId, numero, status);
+                            StockManager.deleteInvoice(conn, invoiceId, number, status);
                         }
 
                         // Delete the invoice details
-                        String deleteDetailsQuery = "DELETE FROM dettagli_fattura WHERE fattura_id = ?";
+                        String deleteDetailsQuery = "DELETE FROM invoice_details WHERE invoice_id = ?";
                         try (PreparedStatement pstmt = conn.prepareStatement(deleteDetailsQuery)) {
                             pstmt.setInt(1, invoiceId);
                             pstmt.executeUpdate();
                         }
 
                         // Delete the invoice
-                        String deleteInvoiceQuery = "DELETE FROM fatture WHERE id = ?";
+                        String deleteInvoiceQuery = "DELETE FROM invoices WHERE id = ?";
                         try (PreparedStatement pstmt = conn.prepareStatement(deleteInvoiceQuery)) {
                             pstmt.setInt(1, invoiceId);
                             pstmt.executeUpdate();

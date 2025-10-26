@@ -4,11 +4,11 @@ import java.awt.event.*;
 import java.sql.*;
 
 public class ProductDialog extends JDialog {
-    private JTextField codiceField;
-    private JTextField nomeField;
-    private JTextArea descrizioneArea;
-    private JTextField prezzoField;
-    private JSpinner quantitaSpinner;
+    private JTextField codeField;
+    private JTextField nameField;
+    private JTextArea descriptionArea;
+    private JTextField priceField;
+    private JSpinner quantitySpinner;
 
     // New fields
     private JComboBox<String> categoryComboBox;
@@ -66,43 +66,43 @@ public class ProductDialog extends JDialog {
         formPanel.add(new JLabel("Code:"), gbc);
 
         gbc.gridx = 1;
-        codiceField = new JTextField(12);
-        formPanel.add(codiceField, gbc);
+        codeField = new JTextField(12);
+        formPanel.add(codeField, gbc);
 
         // Name
         gbc.gridx = 0; gbc.gridy = 1;
         formPanel.add(new JLabel("Name:"), gbc);
 
         gbc.gridx = 1;
-        nomeField = new JTextField(12);
-        formPanel.add(nomeField, gbc);
+        nameField = new JTextField(12);
+        formPanel.add(nameField, gbc);
 
         // Description
         gbc.gridx = 0; gbc.gridy = 2;
         formPanel.add(new JLabel("Description:"), gbc);
 
         gbc.gridx = 1;
-        descrizioneArea = new JTextArea(3, 12);
-        descrizioneArea.setLineWrap(true);
-        descrizioneArea.setWrapStyleWord(true);
-        formPanel.add(new JScrollPane(descrizioneArea), gbc);
+        descriptionArea = new JTextArea(3, 12);
+        descriptionArea.setLineWrap(true);
+        descriptionArea.setWrapStyleWord(true);
+        formPanel.add(new JScrollPane(descriptionArea), gbc);
 
         // Price
         gbc.gridx = 0; gbc.gridy = 3;
         formPanel.add(new JLabel("Price:"), gbc);
 
         gbc.gridx = 1;
-        prezzoField = new JTextField(12);
-        formPanel.add(prezzoField, gbc);
-        
+        priceField = new JTextField(12);
+        formPanel.add(priceField, gbc);
+
         // Quantity
         gbc.gridx = 0; gbc.gridy = 4;
         formPanel.add(new JLabel("Quantity:"), gbc);
 
         gbc.gridx = 1;
         SpinnerNumberModel spinnerModel = new SpinnerNumberModel(0, 0, 999999, 1);
-        quantitaSpinner = new JSpinner(spinnerModel);
-        formPanel.add(quantitaSpinner, gbc);
+        quantitySpinner = new JSpinner(spinnerModel);
+        formPanel.add(quantitySpinner, gbc);
 
         // Category
         gbc.gridx = 0; gbc.gridy = 5;
@@ -200,11 +200,11 @@ public class ProductDialog extends JDialog {
     }
     
     private void loadProductData() {
-        codiceField.setText(product.getCodice());
-        nomeField.setText(product.getNome());
-        descrizioneArea.setText(product.getDescrizione());
-        prezzoField.setText(String.valueOf(product.getPrezzo()));
-        quantitaSpinner.setValue(product.getQuantita());
+        codeField.setText(product.getCode());
+        nameField.setText(product.getName());
+        descriptionArea.setText(product.getDescription());
+        priceField.setText(String.valueOf(product.getPrice()));
+        quantitySpinner.setValue(product.getQuantity());
 
         // Load new fields
         categoryComboBox.setSelectedItem(product.getCategory());
@@ -288,11 +288,11 @@ public class ProductDialog extends JDialog {
     private void saveProduct() {
         try {
             // Validation
-            String codice = codiceField.getText().trim();
-            String nome = nomeField.getText().trim();
-            String descrizione = descrizioneArea.getText().trim();
-            double prezzo = Double.parseDouble(prezzoField.getText().trim());
-            int quantita = (int)quantitaSpinner.getValue();
+            String code = codeField.getText().trim();
+            String name = nameField.getText().trim();
+            String description = descriptionArea.getText().trim();
+            double price = Double.parseDouble(priceField.getText().trim());
+            int quantity = (int)quantitySpinner.getValue();
 
             // New fields
             String category = (String)categoryComboBox.getSelectedItem();
@@ -304,7 +304,7 @@ public class ProductDialog extends JDialog {
             boolean active = activeCheckBox.isSelected();
             Integer supplierId = selectedSupplier != null ? selectedSupplier.getId() : null;
 
-            if (codice.isEmpty() || nome.isEmpty()) {
+            if (code.isEmpty() || name.isEmpty()) {
                 JOptionPane.showMessageDialog(this,
                     "Code and Name fields are required",
                     "Error", JOptionPane.ERROR_MESSAGE);
@@ -314,17 +314,17 @@ public class ProductDialog extends JDialog {
             Connection conn = DatabaseManager.getInstance().getConnection();
             if (product == null) { // New product
                 String query = """
-                    INSERT INTO prodotti (codice, nome, descrizione, prezzo, quantita,
+                    INSERT INTO products (code, name, description, price, quantity,
                         category, alternative_sku, weight, unit_of_measure, minimum_quantity,
                         acquisition_cost, active, supplier_id)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
                 try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                    pstmt.setString(1, codice);
-                    pstmt.setString(2, nome);
-                    pstmt.setString(3, descrizione);
-                    pstmt.setDouble(4, prezzo);
-                    pstmt.setInt(5, quantita);
+                    pstmt.setString(1, code);
+                    pstmt.setString(2, name);
+                    pstmt.setString(3, description);
+                    pstmt.setDouble(4, price);
+                    pstmt.setInt(5, quantity);
                     pstmt.setString(6, category);
                     pstmt.setString(7, alternativeSku);
                     pstmt.setDouble(8, weight);
@@ -341,18 +341,18 @@ public class ProductDialog extends JDialog {
                 }
             } else { // Edit product
                 String query = """
-                    UPDATE prodotti
-                    SET codice = ?, nome = ?, descrizione = ?, prezzo = ?, quantita = ?,
+                    UPDATE products
+                    SET code = ?, name = ?, description = ?, price = ?, quantity = ?,
                         category = ?, alternative_sku = ?, weight = ?, unit_of_measure = ?,
                         minimum_quantity = ?, acquisition_cost = ?, active = ?, supplier_id = ?
                     WHERE id = ?
                 """;
                 try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                    pstmt.setString(1, codice);
-                    pstmt.setString(2, nome);
-                    pstmt.setString(3, descrizione);
-                    pstmt.setDouble(4, prezzo);
-                    pstmt.setInt(5, quantita);
+                    pstmt.setString(1, code);
+                    pstmt.setString(2, name);
+                    pstmt.setString(3, description);
+                    pstmt.setDouble(4, price);
+                    pstmt.setInt(5, quantity);
                     pstmt.setString(6, category);
                     pstmt.setString(7, alternativeSku);
                     pstmt.setDouble(8, weight);

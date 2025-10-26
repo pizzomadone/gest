@@ -27,11 +27,11 @@ public class SupplierSelectionDialog extends JDialog {
     }
 
     private void initComponents() {
-        // Panel principale con padding
+        // Main panel with padding
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
-        // Panel di ricerca migliorato
+        // Improved search panel
         JPanel searchPanel = new JPanel(new BorderLayout(10, 10));
         searchPanel.setBorder(BorderFactory.createTitledBorder("Search Supplier"));
 
@@ -43,7 +43,7 @@ public class SupplierSelectionDialog extends JDialog {
         JButton clearButton = new JButton("Clear");
         JButton newSupplierButton = new JButton("New Supplier");
 
-        // Ricerca in tempo reale mentre si digita
+        // Real-time search while typing
         searchField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             @Override
             public void insertUpdate(javax.swing.event.DocumentEvent e) { performSearch(); }
@@ -53,7 +53,7 @@ public class SupplierSelectionDialog extends JDialog {
             public void changedUpdate(javax.swing.event.DocumentEvent e) { performSearch(); }
         });
 
-        // Enter key per ricerca
+        // Enter key for search
         searchField.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -78,7 +78,7 @@ public class SupplierSelectionDialog extends JDialog {
 
         searchPanel.add(searchInputPanel, BorderLayout.CENTER);
 
-        // Tabella fornitori con colonne dettagliate
+        // Suppliers table with detailed columns
         String[] columns = {"ID", "Company Name", "VAT Number", "Email", "Phone", "City", "Full Address"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
@@ -88,12 +88,12 @@ public class SupplierSelectionDialog extends JDialog {
         };
         suppliersTable = new JTable(tableModel);
 
-        // Nascondi colonna ID ma mantienila per i dati
+        // Hide ID column but keep it for data
         suppliersTable.getColumnModel().getColumn(0).setMinWidth(0);
         suppliersTable.getColumnModel().getColumn(0).setMaxWidth(0);
         suppliersTable.getColumnModel().getColumn(0).setPreferredWidth(0);
 
-        // Imposta larghezza colonne
+        // Set column widths
         suppliersTable.getColumnModel().getColumn(1).setPreferredWidth(180); // Company Name
         suppliersTable.getColumnModel().getColumn(2).setPreferredWidth(120); // VAT Number
         suppliersTable.getColumnModel().getColumn(3).setPreferredWidth(180); // Email
@@ -101,7 +101,7 @@ public class SupplierSelectionDialog extends JDialog {
         suppliersTable.getColumnModel().getColumn(5).setPreferredWidth(100); // City
         suppliersTable.getColumnModel().getColumn(6).setPreferredWidth(200); // Full Address
 
-        // Double-click per selezione
+        // Double-click for selection
         suppliersTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -111,7 +111,7 @@ public class SupplierSelectionDialog extends JDialog {
             }
         });
 
-        // Selezione con Enter
+        // Selection with Enter
         suppliersTable.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -124,7 +124,7 @@ public class SupplierSelectionDialog extends JDialog {
         JScrollPane tableScrollPane = new JScrollPane(suppliersTable);
         tableScrollPane.setBorder(BorderFactory.createTitledBorder("Suppliers (Double-click to select)"));
 
-        // Panel pulsanti
+        // Buttons panel
         JPanel buttonPanel = new JPanel(new FlowLayout());
         JButton selectButton = new JButton("Select");
         JButton cancelButton = new JButton("Cancel");
@@ -132,7 +132,7 @@ public class SupplierSelectionDialog extends JDialog {
         selectButton.addActionListener(e -> selectSupplier());
         cancelButton.addActionListener(e -> dispose());
 
-        // Stile pulsanti
+        // Button styling
         selectButton.setPreferredSize(new Dimension(100, 30));
         cancelButton.setPreferredSize(new Dimension(100, 30));
         selectButton.setFont(selectButton.getFont().deriveFont(Font.BOLD));
@@ -140,14 +140,14 @@ public class SupplierSelectionDialog extends JDialog {
         buttonPanel.add(selectButton);
         buttonPanel.add(cancelButton);
 
-        // Assemblaggio
+        // Assembly
         mainPanel.add(searchPanel, BorderLayout.NORTH);
         mainPanel.add(tableScrollPane, BorderLayout.CENTER);
         mainPanel.add(buttonPanel, BorderLayout.SOUTH);
 
         add(mainPanel);
 
-        // Focus iniziale sul campo di ricerca
+        // Initial focus on search field
         SwingUtilities.invokeLater(() -> searchField.requestFocus());
     }
 
@@ -156,9 +156,9 @@ public class SupplierSelectionDialog extends JDialog {
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
             String query = """
-                SELECT id, ragione_sociale, partita_iva, email, telefono, indirizzo
-                FROM fornitori
-                ORDER BY ragione_sociale
+                SELECT id, company_name, vat_number, email, phone, address
+                FROM suppliers
+                ORDER BY company_name
             """;
 
             try (Statement stmt = conn.createStatement();
@@ -186,19 +186,19 @@ public class SupplierSelectionDialog extends JDialog {
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
             String query = """
-                SELECT id, ragione_sociale, partita_iva, email, telefono, indirizzo
-                FROM fornitori
-                WHERE LOWER(ragione_sociale) LIKE LOWER(?)
-                   OR LOWER(partita_iva) LIKE LOWER(?)
+                SELECT id, company_name, vat_number, email, phone, address
+                FROM suppliers
+                WHERE LOWER(company_name) LIKE LOWER(?)
+                   OR LOWER(vat_number) LIKE LOWER(?)
                    OR LOWER(email) LIKE LOWER(?)
-                   OR telefono LIKE ?
-                   OR LOWER(indirizzo) LIKE LOWER(?)
+                   OR phone LIKE ?
+                   OR LOWER(address) LIKE LOWER(?)
                 ORDER BY
                     CASE
-                        WHEN LOWER(ragione_sociale) LIKE LOWER(?) THEN 1
+                        WHEN LOWER(company_name) LIKE LOWER(?) THEN 1
                         ELSE 2
                     END,
-                    ragione_sociale
+                    company_name
             """;
 
             String searchPattern = "%" + searchTerm + "%";
@@ -210,7 +210,7 @@ public class SupplierSelectionDialog extends JDialog {
                 pstmt.setString(3, searchPattern);
                 pstmt.setString(4, searchPattern);
                 pstmt.setString(5, searchPattern);
-                pstmt.setString(6, exactPattern); // Per ordinamento
+                pstmt.setString(6, exactPattern); // For ordering
 
                 try (ResultSet rs = pstmt.executeQuery()) {
                     while (rs.next()) {
@@ -228,14 +228,14 @@ public class SupplierSelectionDialog extends JDialog {
 
     private void addSupplierRow(ResultSet rs) throws SQLException {
         Vector<Object> row = new Vector<>();
-        row.add(rs.getInt("id")); // ID nascosto
-        row.add(rs.getString("ragione_sociale"));
-        row.add(rs.getString("partita_iva"));
+        row.add(rs.getInt("id")); // Hidden ID
+        row.add(rs.getString("company_name"));
+        row.add(rs.getString("vat_number"));
         row.add(rs.getString("email"));
-        row.add(rs.getString("telefono"));
+        row.add(rs.getString("phone"));
 
-        // Estrai la città dall'indirizzo (prendi l'ultima parte dopo la virgola)
-        String fullAddress = rs.getString("indirizzo");
+        // Extract city from address (take the last part after comma)
+        String fullAddress = rs.getString("address");
         String city = "";
         if (fullAddress != null && !fullAddress.isEmpty()) {
             String[] parts = fullAddress.split(",");
@@ -252,26 +252,26 @@ public class SupplierSelectionDialog extends JDialog {
     private void selectSupplier() {
         int selectedRow = suppliersTable.getSelectedRow();
         if (selectedRow != -1) {
-            // Recupera i dati completi del fornitore dal database
+            // Get complete supplier data from database
             int supplierId = (int)tableModel.getValueAt(selectedRow, 0);
             try {
                 Connection conn = DatabaseManager.getInstance().getConnection();
-                String query = "SELECT * FROM fornitori WHERE id = ?";
+                String query = "SELECT * FROM suppliers WHERE id = ?";
                 try (PreparedStatement pstmt = conn.prepareStatement(query)) {
                     pstmt.setInt(1, supplierId);
                     try (ResultSet rs = pstmt.executeQuery()) {
                         if (rs.next()) {
                             selectedSupplier = new Supplier(
                                 rs.getInt("id"),
-                                rs.getString("ragione_sociale"),
-                                rs.getString("partita_iva"),
-                                rs.getString("codice_fiscale"),
-                                rs.getString("indirizzo"),
-                                rs.getString("telefono"),
+                                rs.getString("company_name"),
+                                rs.getString("vat_number"),
+                                rs.getString("tax_code"),
+                                rs.getString("address"),
+                                rs.getString("phone"),
                                 rs.getString("email"),
-                                rs.getString("pec"),
-                                rs.getString("sito_web"),
-                                rs.getString("note")
+                                rs.getString("certified_email"),
+                                rs.getString("website"),
+                                rs.getString("notes")
                             );
                             supplierSelected = true;
                             dispose();
@@ -295,7 +295,7 @@ public class SupplierSelectionDialog extends JDialog {
         SupplierDialog dialog = new SupplierDialog(this, null);
         dialog.setVisible(true);
         if (dialog.isSupplierSaved()) {
-            // Ricarica la lista e seleziona il nuovo fornitore
+            // Reload list and select the new supplier
             loadAllSuppliers();
         }
     }

@@ -1,33 +1,33 @@
 public class Customer {
     private int id;
-    private String nome;
-    private String cognome;
+    private String firstName;
+    private String lastName;
     private String email;
-    private String telefono;
-    private String indirizzo;
-    
-    public Customer(int id, String nome, String cognome, String email, String telefono, String indirizzo) {
+    private String phone;
+    private String address;
+
+    public Customer(int id, String firstName, String lastName, String email, String phone, String address) {
         this.id = id;
-        this.nome = nome;
-        this.cognome = cognome;
+        this.firstName = firstName;
+        this.lastName = lastName;
         this.email = email;
-        this.telefono = telefono;
-        this.indirizzo = indirizzo;
+        this.phone = phone;
+        this.address = address;
     }
-    
+
     // Getters
     public int getId() { return id; }
-    public String getNome() { return nome; }
-    public String getCognome() { return cognome; }
+    public String getFirstName() { return firstName; }
+    public String getLastName() { return lastName; }
     public String getEmail() { return email; }
-    public String getTelefono() { return telefono; }
-    public String getIndirizzo() { return indirizzo; }
-    
+    public String getPhone() { return phone; }
+    public String getAddress() { return address; }
+
     // Setters
     public void setId(int id) { this.id = id; }
-    public void setNome(String nome) { this.nome = nome; }
-    public void setCognome(String cognome) { this.cognome = cognome; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
     public void setEmail(String email) { this.email = email; }
-    public void setTelefono(String telefono) { this.telefono = telefono; }
-    public void setIndirizzo(String indirizzo) { this.indirizzo = indirizzo; }
+    public void setPhone(String phone) { this.phone = phone; }
+    public void setAddress(String address) { this.address = address; }
 }

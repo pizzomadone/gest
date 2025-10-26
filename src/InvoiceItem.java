@@ -2,49 +2,49 @@
 // File: InvoiceItem.java
 public class InvoiceItem {
     private int id;
-    private int fatturaId;
-    private int prodottoId;
-    private String prodottoNome;
-    private String prodottoCodice;
-    private int quantita;
-    private double prezzoUnitario;
-    private double aliquotaIva;
-    private double totale;
-    
-    public InvoiceItem(int id, int fatturaId, int prodottoId, String prodottoNome, 
-                      String prodottoCodice, int quantita, double prezzoUnitario, 
-                      double aliquotaIva, double totale) {
+    private int invoiceId;
+    private int productId;
+    private String productName;
+    private String productCode;
+    private int quantity;
+    private double unitPrice;
+    private double vatRate;
+    private double total;
+
+    public InvoiceItem(int id, int invoiceId, int productId, String productName,
+                      String productCode, int quantity, double unitPrice,
+                      double vatRate, double total) {
         this.id = id;
-        this.fatturaId = fatturaId;
-        this.prodottoId = prodottoId;
-        this.prodottoNome = prodottoNome;
-        this.prodottoCodice = prodottoCodice;
-        this.quantita = quantita;
-        this.prezzoUnitario = prezzoUnitario;
-        this.aliquotaIva = aliquotaIva;
-        this.totale = totale;
+        this.invoiceId = invoiceId;
+        this.productId = productId;
+        this.productName = productName;
+        this.productCode = productCode;
+        this.quantity = quantity;
+        this.unitPrice = unitPrice;
+        this.vatRate = vatRate;
+        this.total = total;
     }
-    
+
     // Getters
     public int getId() { return id; }
-    public int getFatturaId() { return fatturaId; }
-    public int getProdottoId() { return prodottoId; }
-    public String getProdottoNome() { return prodottoNome; }
-    public String getProdottoCodice() { return prodottoCodice; }
-    public int getQuantita() { return quantita; }
-    public double getPrezzoUnitario() { return prezzoUnitario; }
-    public double getAliquotaIva() { return aliquotaIva; }
-    public double getTotale() { return totale; }
-    
+    public int getInvoiceId() { return invoiceId; }
+    public int getProductId() { return productId; }
+    public String getProductName() { return productName; }
+    public String getProductCode() { return productCode; }
+    public int getQuantity() { return quantity; }
+    public double getUnitPrice() { return unitPrice; }
+    public double getVatRate() { return vatRate; }
+    public double getTotal() { return total; }
+
     // Setters
     public void setId(int id) { this.id = id; }
-    public void setFatturaId(int fatturaId) { this.fatturaId = fatturaId; }
-    public void setProdottoId(int prodottoId) { this.prodottoId = prodottoId; }
-    public void setProdottoNome(String prodottoNome) { this.prodottoNome = prodottoNome; }
-    public void setProdottoCodice(String prodottoCodice) { this.prodottoCodice = prodottoCodice; }
-    public void setQuantita(int quantita) { this.quantita = quantita; }
-    public void setPrezzoUnitario(double prezzoUnitario) { this.prezzoUnitario = prezzoUnitario; }
-    public void setAliquotaIva(double aliquotaIva) { this.aliquotaIva = aliquotaIva; }
-    public void setTotale(double totale) { this.totale = totale; }
+    public void setInvoiceId(int invoiceId) { this.invoiceId = invoiceId; }
+    public void setProductId(int productId) { this.productId = productId; }
+    public void setProductName(String productName) { this.productName = productName; }
+    public void setProductCode(String productCode) { this.productCode = productCode; }
+    public void setQuantity(int quantity) { this.quantity = quantity; }
+    public void setUnitPrice(double unitPrice) { this.unitPrice = unitPrice; }
+    public void setVatRate(double vatRate) { this.vatRate = vatRate; }
+    public void setTotal(double total) { this.total = total; }
 }
 

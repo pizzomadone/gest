@@ -4,51 +4,51 @@ import java.util.Date;
 
 public class WarehouseMovement {
     private int id;
-    private int prodottoId;
-    private String prodottoNome;
-    private Date data;
-    private String tipo;
-    private int quantita;
-    private String causale;
-    private String documentoNumero;
-    private String documentoTipo;
-    private String note;
-    
-    public WarehouseMovement(int id, int prodottoId, String prodottoNome, Date data, 
-                            String tipo, int quantita, String causale, String documentoNumero, 
-                            String documentoTipo, String note) {
+    private int productId;
+    private String productName;
+    private Date date;
+    private String type;
+    private int quantity;
+    private String reason;
+    private String documentNumber;
+    private String documentType;
+    private String notes;
+
+    public WarehouseMovement(int id, int productId, String productName, Date date,
+                            String type, int quantity, String reason, String documentNumber,
+                            String documentType, String notes) {
         this.id = id;
-        this.prodottoId = prodottoId;
-        this.prodottoNome = prodottoNome;
-        this.data = data;
-        this.tipo = tipo;
-        this.quantita = quantita;
-        this.causale = causale;
-        this.documentoNumero = documentoNumero;
-        this.documentoTipo = documentoTipo;
-        this.note = note;
+        this.productId = productId;
+        this.productName = productName;
+        this.date = date;
+        this.type = type;
+        this.quantity = quantity;
+        this.reason = reason;
+        this.documentNumber = documentNumber;
+        this.documentType = documentType;
+        this.notes = notes;
     }
-    
-    // Getters e Setters standard
+
+    // Standard Getters and Setters
     public int getId() { return id; }
-    public int getProdottoId() { return prodottoId; }
-    public String getProdottoNome() { return prodottoNome; }
-    public Date getData() { return data; }
-    public String getTipo() { return tipo; }
-    public int getQuantita() { return quantita; }
-    public String getCausale() { return causale; }
-    public String getDocumentoNumero() { return documentoNumero; }
-    public String getDocumentoTipo() { return documentoTipo; }
-    public String getNote() { return note; }
-    
+    public int getProductId() { return productId; }
+    public String getProductName() { return productName; }
+    public Date getDate() { return date; }
+    public String getType() { return type; }
+    public int getQuantity() { return quantity; }
+    public String getReason() { return reason; }
+    public String getDocumentNumber() { return documentNumber; }
+    public String getDocumentType() { return documentType; }
+    public String getNotes() { return notes; }
+
     public void setId(int id) { this.id = id; }
-    public void setProdottoId(int prodottoId) { this.prodottoId = prodottoId; }
-    public void setProdottoNome(String prodottoNome) { this.prodottoNome = prodottoNome; }
-    public void setData(Date data) { this.data = data; }
-    public void setTipo(String tipo) { this.tipo = tipo; }
-    public void setQuantita(int quantita) { this.quantita = quantita; }
-    public void setCausale(String causale) { this.causale = causale; }
-    public void setDocumentoNumero(String documentoNumero) { this.documentoNumero = documentoNumero; }
-    public void setDocumentoTipo(String documentoTipo) { this.documentoTipo = documentoTipo; }
-    public void setNote(String note) { this.note = note; }
+    public void setProductId(int productId) { this.productId = productId; }
+    public void setProductName(String productName) { this.productName = productName; }
+    public void setDate(Date date) { this.date = date; }
+    public void setType(String type) { this.type = type; }
+    public void setQuantity(int quantity) { this.quantity = quantity; }
+    public void setReason(String reason) { this.reason = reason; }
+    public void setDocumentNumber(String documentNumber) { this.documentNumber = documentNumber; }
+    public void setDocumentType(String documentType) { this.documentType = documentType; }
+    public void setNotes(String notes) { this.notes = notes; }
 }

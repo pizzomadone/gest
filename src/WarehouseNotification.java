@@ -4,39 +4,39 @@ import java.util.Date;
 
 public class WarehouseNotification {
     private int id;
-    private int prodottoId;
-    private String prodottoNome;
-    private Date data;
-    private String tipo;
-    private String messaggio;
-    private String stato;
-    
-    public WarehouseNotification(int id, int prodottoId, String prodottoNome, 
-                                Date data, String tipo, String messaggio, String stato) {
+    private int productId;
+    private String productName;
+    private Date date;
+    private String type;
+    private String message;
+    private String status;
+
+    public WarehouseNotification(int id, int productId, String productName,
+                                Date date, String type, String message, String status) {
         this.id = id;
-        this.prodottoId = prodottoId;
-        this.prodottoNome = prodottoNome;
-        this.data = data;
-        this.tipo = tipo;
-        this.messaggio = messaggio;
-        this.stato = stato;
+        this.productId = productId;
+        this.productName = productName;
+        this.date = date;
+        this.type = type;
+        this.message = message;
+        this.status = status;
     }
-    
-    // Getters e Setters
+
+    // Getters and Setters
     public int getId() { return id; }
-    public int getProdottoId() { return prodottoId; }
-    public String getProdottoNome() { return prodottoNome; }
-    public Date getData() { return data; }
-    public String getTipo() { return tipo; }
-    public String getMessaggio() { return messaggio; }
-    public String getStato() { return stato; }
-    
+    public int getProductId() { return productId; }
+    public String getProductName() { return productName; }
+    public Date getDate() { return date; }
+    public String getType() { return type; }
+    public String getMessage() { return message; }
+    public String getStatus() { return status; }
+
     public void setId(int id) { this.id = id; }
-    public void setProdottoId(int prodottoId) { this.prodottoId = prodottoId; }
-    public void setProdottoNome(String prodottoNome) { this.prodottoNome = prodottoNome; }
-    public void setData(Date data) { this.data = data; }
-    public void setTipo(String tipo) { this.tipo = tipo; }
-    public void setMessaggio(String messaggio) { this.messaggio = messaggio; }
-    public void setStato(String stato) { this.stato = stato; }
+    public void setProductId(int productId) { this.productId = productId; }
+    public void setProductName(String productName) { this.productName = productName; }
+    public void setDate(Date date) { this.date = date; }
+    public void setType(String type) { this.type = type; }
+    public void setMessage(String message) { this.message = message; }
+    public void setStatus(String status) { this.status = status; }
 }
 
