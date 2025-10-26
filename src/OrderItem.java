@@ -1,35 +1,35 @@
 
 public class OrderItem {
     private int id;
-    private int ordineId;
-    private int prodottoId;
-    private String prodottoNome;
-    private int quantita;
-    private double prezzoUnitario;
-    
-    public OrderItem(int id, int ordineId, int prodottoId, String prodottoNome, int quantita, double prezzoUnitario) {
+    private int orderId;
+    private int productId;
+    private String productName;
+    private int quantity;
+    private double unitPrice;
+
+    public OrderItem(int id, int orderId, int productId, String productName, int quantity, double unitPrice) {
         this.id = id;
-        this.ordineId = ordineId;
-        this.prodottoId = prodottoId;
-        this.prodottoNome = prodottoNome;
-        this.quantita = quantita;
-        this.prezzoUnitario = prezzoUnitario;
+        this.orderId = orderId;
+        this.productId = productId;
+        this.productName = productName;
+        this.quantity = quantity;
+        this.unitPrice = unitPrice;
     }
-    
+
     // Getters
     public int getId() { return id; }
-    public int getOrdineId() { return ordineId; }
-    public int getProdottoId() { return prodottoId; }
-    public String getProdottoNome() { return prodottoNome; }
-    public int getQuantita() { return quantita; }
-    public double getPrezzoUnitario() { return prezzoUnitario; }
-    public double getTotale() { return quantita * prezzoUnitario; }
-    
+    public int getOrderId() { return orderId; }
+    public int getProductId() { return productId; }
+    public String getProductName() { return productName; }
+    public int getQuantity() { return quantity; }
+    public double getUnitPrice() { return unitPrice; }
+    public double getTotal() { return quantity * unitPrice; }
+
     // Setters
     public void setId(int id) { this.id = id; }
-    public void setOrdineId(int ordineId) { this.ordineId = ordineId; }
-    public void setProdottoId(int prodottoId) { this.prodottoId = prodottoId; }
-    public void setProdottoNome(String prodottoNome) { this.prodottoNome = prodottoNome; }
-    public void setQuantita(int quantita) { this.quantita = quantita; }
-    public void setPrezzoUnitario(double prezzoUnitario) { this.prezzoUnitario = prezzoUnitario; }
+    public void setOrderId(int orderId) { this.orderId = orderId; }
+    public void setProductId(int productId) { this.productId = productId; }
+    public void setProductName(String productName) { this.productName = productName; }
+    public void setQuantity(int quantity) { this.quantity = quantity; }
+    public void setUnitPrice(double unitPrice) { this.unitPrice = unitPrice; }
 }

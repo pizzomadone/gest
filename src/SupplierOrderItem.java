@@ -2,48 +2,48 @@
 // File: SupplierOrderItem.java
 public class SupplierOrderItem {
     private int id;
-    private int ordineId;
-    private int prodottoId;
-    private String prodottoNome;
-    private String prodottoCodice;
-    private int quantita;
-    private double prezzoUnitario;
-    private double totale;
-    private String note;
-    
-    public SupplierOrderItem(int id, int ordineId, int prodottoId, String prodottoNome,
-                            String prodottoCodice, int quantita, double prezzoUnitario,
-                            double totale, String note) {
+    private int orderId;
+    private int productId;
+    private String productName;
+    private String productCode;
+    private int quantity;
+    private double unitPrice;
+    private double total;
+    private String notes;
+
+    public SupplierOrderItem(int id, int orderId, int productId, String productName,
+                            String productCode, int quantity, double unitPrice,
+                            double total, String notes) {
         this.id = id;
-        this.ordineId = ordineId;
-        this.prodottoId = prodottoId;
-        this.prodottoNome = prodottoNome;
-        this.prodottoCodice = prodottoCodice;
-        this.quantita = quantita;
-        this.prezzoUnitario = prezzoUnitario;
-        this.totale = totale;
-        this.note = note;
+        this.orderId = orderId;
+        this.productId = productId;
+        this.productName = productName;
+        this.productCode = productCode;
+        this.quantity = quantity;
+        this.unitPrice = unitPrice;
+        this.total = total;
+        this.notes = notes;
     }
-    
+
     // Getters
     public int getId() { return id; }
-    public int getOrdineId() { return ordineId; }
-    public int getProdottoId() { return prodottoId; }
-    public String getProdottoNome() { return prodottoNome; }
-    public String getProdottoCodice() { return prodottoCodice; }
-    public int getQuantita() { return quantita; }
-    public double getPrezzoUnitario() { return prezzoUnitario; }
-    public double getTotale() { return totale; }
-    public String getNote() { return note; }
-    
+    public int getOrderId() { return orderId; }
+    public int getProductId() { return productId; }
+    public String getProductName() { return productName; }
+    public String getProductCode() { return productCode; }
+    public int getQuantity() { return quantity; }
+    public double getUnitPrice() { return unitPrice; }
+    public double getTotal() { return total; }
+    public String getNotes() { return notes; }
+
     // Setters
     public void setId(int id) { this.id = id; }
-    public void setOrdineId(int ordineId) { this.ordineId = ordineId; }
-    public void setProdottoId(int prodottoId) { this.prodottoId = prodottoId; }
-    public void setProdottoNome(String prodottoNome) { this.prodottoNome = prodottoNome; }
-    public void setProdottoCodice(String prodottoCodice) { this.prodottoCodice = prodottoCodice; }
-    public void setQuantita(int quantita) { this.quantita = quantita; }
-    public void setPrezzoUnitario(double prezzoUnitario) { this.prezzoUnitario = prezzoUnitario; }
-    public void setTotale(double totale) { this.totale = totale; }
-    public void setNote(String note) { this.note = note; }
+    public void setOrderId(int orderId) { this.orderId = orderId; }
+    public void setProductId(int productId) { this.productId = productId; }
+    public void setProductName(String productName) { this.productName = productName; }
+    public void setProductCode(String productCode) { this.productCode = productCode; }
+    public void setQuantity(int quantity) { this.quantity = quantity; }
+    public void setUnitPrice(double unitPrice) { this.unitPrice = unitPrice; }
+    public void setTotal(double total) { this.total = total; }
+    public void setNotes(String notes) { this.notes = notes; }
 }

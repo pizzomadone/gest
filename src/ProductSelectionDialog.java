@@ -15,8 +15,8 @@ public class ProductSelectionDialog extends JDialog {
     private JSpinner quantitySpinner;
     private JTextField vatRateField;
     private JLabel noteLabel;
-    
-    // Dati del prodotto selezionato per l'ordine
+
+    // Selected product data for the order
     private int selectedQuantity = 1;
     private double selectedVatRate = 22.0;
     private Timer searchTimer;
@@ -36,11 +36,11 @@ public class ProductSelectionDialog extends JDialog {
     }
     
     private void initComponents() {
-        // Panel principale con padding
+        // Main panel with padding
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-        
-        // Panel di ricerca migliorato
+
+        // Improved search panel
         JPanel searchPanel = new JPanel(new BorderLayout(10, 10));
         searchPanel.setBorder(BorderFactory.createTitledBorder("Search Product"));
         
@@ -51,8 +51,8 @@ public class ProductSelectionDialog extends JDialog {
         JButton searchButton = new JButton("Search");
         JButton clearButton = new JButton("Clear");
         JButton newProductButton = new JButton("New Product");
-        
-        // Ricerca in tempo reale con delay
+
+        // Real-time search with delay
         searchField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             @Override
             public void insertUpdate(javax.swing.event.DocumentEvent e) { scheduleSearch(); }
@@ -61,8 +61,8 @@ public class ProductSelectionDialog extends JDialog {
             @Override
             public void changedUpdate(javax.swing.event.DocumentEvent e) { scheduleSearch(); }
         });
-        
-        // Enter key per ricerca
+
+        // Enter key for search
         searchField.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -84,10 +84,11 @@ public class ProductSelectionDialog extends JDialog {
         searchInputPanel.add(searchButton);
         searchInputPanel.add(clearButton);
         searchInputPanel.add(newProductButton);
-        
+
+
         searchPanel.add(searchInputPanel, BorderLayout.CENTER);
-        
-        // Tabella prodotti con informazioni dettagliate
+
+        // Products table with detailed information
         String[] columns = {"ID", "Code", "Name", "Description", "Price €", "Stock", "Status"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
@@ -96,28 +97,28 @@ public class ProductSelectionDialog extends JDialog {
             }
         };
         productsTable = new JTable(tableModel);
-        
-        // Nascondi colonna ID
+
+        // Hide ID column
         productsTable.getColumnModel().getColumn(0).setMinWidth(0);
         productsTable.getColumnModel().getColumn(0).setMaxWidth(0);
         productsTable.getColumnModel().getColumn(0).setPreferredWidth(0);
-        
-        // Imposta larghezza colonne
+
+        // Set column widths
         productsTable.getColumnModel().getColumn(1).setPreferredWidth(80);  // Code
         productsTable.getColumnModel().getColumn(2).setPreferredWidth(200); // Name
         productsTable.getColumnModel().getColumn(3).setPreferredWidth(250); // Description
         productsTable.getColumnModel().getColumn(4).setPreferredWidth(80);  // Price
         productsTable.getColumnModel().getColumn(5).setPreferredWidth(60);  // Stock
         productsTable.getColumnModel().getColumn(6).setPreferredWidth(80);  // Status
-        
-        // Row selection listener per aggiornare i dettagli
+
+        // Row selection listener to update details
         productsTable.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 updateProductDetails();
             }
         });
-        
-        // Double-click per selezione (solo tasto sinistro)
+
+        // Double-click for selection (left button only)
         productsTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -126,8 +127,8 @@ public class ProductSelectionDialog extends JDialog {
                 }
             }
         });
-        
-        // Selezione con Enter
+
+        // Selection with Enter
         productsTable.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -136,74 +137,74 @@ public class ProductSelectionDialog extends JDialog {
                 }
             }
         });
-        
+
         JScrollPane tableScrollPane = new JScrollPane(productsTable);
         tableScrollPane.setBorder(BorderFactory.createTitledBorder("Products (Double-click to select)"));
         tableScrollPane.setPreferredSize(new Dimension(900, 290)); // Reduced height
-        
-        // Panel dettagli prodotto selezionato - FIXED LAYOUT
+
+        // Selected product details panel - FIXED LAYOUT
         JPanel detailsPanel = createDetailsPanel();
-        
-        // Panel pulsanti
+
+        // Button panel
         JPanel buttonPanel = new JPanel(new FlowLayout());
         JButton selectButton = new JButton("Add to Order/Invoice");
         JButton cancelButton = new JButton("Cancel");
         
         selectButton.addActionListener(e -> selectProduct());
         cancelButton.addActionListener(e -> dispose());
-        
-        // Stile pulsanti
+
+        // Button style
         selectButton.setPreferredSize(new Dimension(150, 30));
         cancelButton.setPreferredSize(new Dimension(100, 30));
         selectButton.setFont(selectButton.getFont().deriveFont(Font.BOLD));
-        
+
         buttonPanel.add(selectButton);
         buttonPanel.add(cancelButton);
-        
-        // Layout principale - FIXED: Better proportions
+
+        // Main layout - FIXED: Better proportions
         mainPanel.add(searchPanel, BorderLayout.NORTH);
         mainPanel.add(tableScrollPane, BorderLayout.CENTER);
         mainPanel.add(detailsPanel, BorderLayout.SOUTH);
-        
+
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.add(buttonPanel, BorderLayout.SOUTH);
-        
+
         add(mainPanel, BorderLayout.CENTER);
         add(bottomPanel, BorderLayout.SOUTH);
-        
-        // Focus iniziale sul campo di ricerca
+
+        // Initial focus on search field
         SwingUtilities.invokeLater(() -> searchField.requestFocus());
     }
-    
+
     // FIXED: Improved details panel layout
     private JPanel createDetailsPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 5));
         panel.setBorder(BorderFactory.createTitledBorder("Selected Product Details"));
         panel.setPreferredSize(new Dimension(900, 120)); // Fixed height
-        
-        // Panel informazioni prodotto con layout migliorato
+
+        // Product information panel with improved layout
         JPanel infoPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 10, 5, 10);
         gbc.anchor = GridBagConstraints.WEST;
-        
-        // Prima riga: Quantità e VAT Rate
+
+        // First row: Quantity and VAT Rate
         gbc.gridx = 0; gbc.gridy = 0;
         infoPanel.add(new JLabel("Quantity:"), gbc);
-        
+
         gbc.gridx = 1;
         SpinnerNumberModel spinnerModel = new SpinnerNumberModel(1, 1, 9999, 1);
         quantitySpinner = new JSpinner(spinnerModel);
         quantitySpinner.setPreferredSize(new Dimension(80, 25));
         infoPanel.add(quantitySpinner, gbc);
-        
-        // Spazio tra i controlli
+
+        // Space between controls
         gbc.gridx = 2;
         infoPanel.add(Box.createHorizontalStrut(30), gbc);
-        
+
         gbc.gridx = 3;
         infoPanel.add(new JLabel("VAT Rate %:"), gbc);
-        
+
         gbc.gridx = 4;
         vatRateField = new JTextField("22.0");
         vatRateField.setPreferredSize(new Dimension(100, 25)); // Increased width
@@ -213,9 +214,9 @@ public class ProductSelectionDialog extends JDialog {
             BorderFactory.createEmptyBorder(2, 5, 2, 5)
         ));
         infoPanel.add(vatRateField, gbc);
-        
-        // Seconda riga: Note/info prodotto selezionato
-        gbc.gridx = 0; gbc.gridy = 1; 
+
+        // Second row: Notes/info about selected product
+        gbc.gridx = 0; gbc.gridy = 1;
         gbc.gridwidth = 5;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
@@ -251,9 +252,9 @@ public class ProductSelectionDialog extends JDialog {
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
             String query = """
-                SELECT id, codice, nome, descrizione, prezzo, quantita
-                FROM prodotti 
-                ORDER BY nome
+                SELECT id, code, name, description, price, quantity
+                FROM products
+                ORDER BY name
                 LIMIT 1000
             """;
             
@@ -282,30 +283,30 @@ public class ProductSelectionDialog extends JDialog {
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
             String query = """
-                SELECT id, codice, nome, descrizione, prezzo, quantita
-                FROM prodotti 
-                WHERE LOWER(codice) LIKE LOWER(?) 
-                   OR LOWER(nome) LIKE LOWER(?) 
-                   OR LOWER(descrizione) LIKE LOWER(?)
-                ORDER BY 
-                    CASE 
-                        WHEN LOWER(codice) LIKE LOWER(?) THEN 1
-                        WHEN LOWER(nome) LIKE LOWER(?) THEN 2
+                SELECT id, code, name, description, price, quantity
+                FROM products
+                WHERE LOWER(code) LIKE LOWER(?)
+                   OR LOWER(name) LIKE LOWER(?)
+                   OR LOWER(description) LIKE LOWER(?)
+                ORDER BY
+                    CASE
+                        WHEN LOWER(code) LIKE LOWER(?) THEN 1
+                        WHEN LOWER(name) LIKE LOWER(?) THEN 2
                         ELSE 3
                     END,
-                    nome
+                    name
                 LIMIT 500
             """;
             
             String searchPattern = "%" + searchTerm + "%";
             String exactPattern = searchTerm + "%";
-            
+
             try (PreparedStatement pstmt = conn.prepareStatement(query)) {
                 pstmt.setString(1, searchPattern);
                 pstmt.setString(2, searchPattern);
                 pstmt.setString(3, searchPattern);
-                pstmt.setString(4, exactPattern); // Per ordinamento
-                pstmt.setString(5, exactPattern); // Per ordinamento
+                pstmt.setString(4, exactPattern); // For sorting
+                pstmt.setString(5, exactPattern); // For sorting
                 
                 try (ResultSet rs = pstmt.executeQuery()) {
                     while (rs.next()) {
@@ -320,26 +321,27 @@ public class ProductSelectionDialog extends JDialog {
                 "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-    
+
+
     private void addProductRow(ResultSet rs) throws SQLException {
         Vector<Object> row = new Vector<>();
-        row.add(rs.getInt("id")); // ID nascosto
-        row.add(rs.getString("codice"));
-        row.add(rs.getString("nome"));
-        
-        String description = rs.getString("descrizione");
-        // Tronca descrizione se troppo lunga
+        row.add(rs.getInt("id")); // Hidden ID
+        row.add(rs.getString("code"));
+        row.add(rs.getString("name"));
+
+        String description = rs.getString("description");
+        // Truncate description if too long
         if (description != null && description.length() > 50) {
             description = description.substring(0, 47) + "...";
         }
         row.add(description);
-        
-        row.add(String.format("%.2f", rs.getDouble("prezzo")));
-        
-        int stock = rs.getInt("quantita");
+
+        row.add(String.format("%.2f", rs.getDouble("price")));
+
+        int stock = rs.getInt("quantity");
         row.add(stock);
-        
-        // Status basato su disponibilità
+
+        // Status based on availability
         String status;
         if (stock <= 0) {
             status = "Out of Stock";
@@ -349,10 +351,10 @@ public class ProductSelectionDialog extends JDialog {
             status = "Available";
         }
         row.add(status);
-        
+
         tableModel.addRow(row);
     }
-    
+
     // FIXED: Better product details display
     private void updateProductDetails() {
         int selectedRow = productsTable.getSelectedRow();
@@ -362,16 +364,16 @@ public class ProductSelectionDialog extends JDialog {
             String priceStr = (String)tableModel.getValueAt(selectedRow, 4);
             int stock = (int)tableModel.getValueAt(selectedRow, 5);
             String status = (String)tableModel.getValueAt(selectedRow, 6);
-            
-            // Aggiorna la nota con informazioni dettagliate e formattate meglio
+
+            // Update note with detailed and better formatted information
             if (noteLabel != null) {
                 String info = String.format(
                     "Selected: %s - %s | Price: €%s | Stock: %d units (%s)",
                     code, name, priceStr, stock, status
                 );
                 noteLabel.setText(info);
-                
-                // Cambia colore in base allo status
+
+                // Change color based on status
                 if ("Out of Stock".equals(status)) {
                     noteLabel.setForeground(new Color(180, 50, 50));
                     noteLabel.setBackground(new Color(255, 245, 245));
@@ -399,13 +401,13 @@ public class ProductSelectionDialog extends JDialog {
                 (int)tableModel.getValueAt(selectedRow, 0),
                 (String)tableModel.getValueAt(selectedRow, 1),
                 (String)tableModel.getValueAt(selectedRow, 2),
-                null, // Descrizione completa se necessaria
+                null, // Full description if needed
                 Double.parseDouble(((String)tableModel.getValueAt(selectedRow, 4)).replace(",", ".")),
                 (int)tableModel.getValueAt(selectedRow, 5)
             );
-            
+
             selectedQuantity = (int)quantitySpinner.getValue();
-            
+
             try {
                 selectedVatRate = Double.parseDouble(vatRateField.getText().replace(",", "."));
                 if (selectedVatRate < 0 || selectedVatRate > 100) {
@@ -419,13 +421,13 @@ public class ProductSelectionDialog extends JDialog {
                 vatRateField.selectAll();
                 return;
             }
-            
-            // Verifica disponibilità
-            if (selectedProduct.getQuantita() < selectedQuantity) {
+
+            // Verify availability
+            if (selectedProduct.getQuantity() < selectedQuantity) {
                 int result = JOptionPane.showConfirmDialog(this,
                     String.format("Warning: Requested quantity (%d) exceeds available stock (%d).\n" +
-                                 "Do you want to continue anyway?", 
-                                 selectedQuantity, selectedProduct.getQuantita()),
+                                 "Do you want to continue anyway?",
+                                 selectedQuantity, selectedProduct.getQuantity()),
                     "Stock Warning",
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE);
@@ -448,11 +450,11 @@ public class ProductSelectionDialog extends JDialog {
         ProductDialog dialog = new ProductDialog(this, null);
         dialog.setVisible(true);
         if (dialog.isProductSaved()) {
-            // Ricarica la lista
+            // Reload the list
             loadAllProducts();
         }
     }
-    
+
     // Getters
     public Product getSelectedProduct() { return selectedProduct; }
     public boolean isProductSelected() { return productSelected; }

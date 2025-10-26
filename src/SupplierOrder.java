@@ -6,52 +6,52 @@ import java.util.ArrayList;
 
 public class SupplierOrder {
     private int id;
-    private int fornitoreId;
-    private String fornitoreNome;
-    private String numero;
-    private Date dataOrdine;
-    private Date dataConsegnaPrevista;
-    private String stato;
-    private double totale;
-    private String note;
+    private int supplierId;
+    private String supplierName;
+    private String number;
+    private Date orderDate;
+    private Date expectedDeliveryDate;
+    private String status;
+    private double total;
+    private String notes;
     private List<SupplierOrderItem> items;
-    
-    public SupplierOrder(int id, int fornitoreId, String fornitoreNome, String numero,
-                        Date dataOrdine, Date dataConsegnaPrevista, String stato, 
-                        double totale, String note) {
+
+    public SupplierOrder(int id, int supplierId, String supplierName, String number,
+                        Date orderDate, Date expectedDeliveryDate, String status,
+                        double total, String notes) {
         this.id = id;
-        this.fornitoreId = fornitoreId;
-        this.fornitoreNome = fornitoreNome;
-        this.numero = numero;
-        this.dataOrdine = dataOrdine;
-        this.dataConsegnaPrevista = dataConsegnaPrevista;
-        this.stato = stato;
-        this.totale = totale;
-        this.note = note;
+        this.supplierId = supplierId;
+        this.supplierName = supplierName;
+        this.number = number;
+        this.orderDate = orderDate;
+        this.expectedDeliveryDate = expectedDeliveryDate;
+        this.status = status;
+        this.total = total;
+        this.notes = notes;
         this.items = new ArrayList<>();
     }
-    
+
     // Getters
     public int getId() { return id; }
-    public int getFornitoreId() { return fornitoreId; }
-    public String getFornitoreNome() { return fornitoreNome; }
-    public String getNumero() { return numero; }
-    public Date getDataOrdine() { return dataOrdine; }
-    public Date getDataConsegnaPrevista() { return dataConsegnaPrevista; }
-    public String getStato() { return stato; }
-    public double getTotale() { return totale; }
-    public String getNote() { return note; }
+    public int getSupplierId() { return supplierId; }
+    public String getSupplierName() { return supplierName; }
+    public String getNumber() { return number; }
+    public Date getOrderDate() { return orderDate; }
+    public Date getExpectedDeliveryDate() { return expectedDeliveryDate; }
+    public String getStatus() { return status; }
+    public double getTotal() { return total; }
+    public String getNotes() { return notes; }
     public List<SupplierOrderItem> getItems() { return items; }
-    
+
     // Setters
     public void setId(int id) { this.id = id; }
-    public void setFornitoreId(int fornitoreId) { this.fornitoreId = fornitoreId; }
-    public void setFornitoreNome(String fornitoreNome) { this.fornitoreNome = fornitoreNome; }
-    public void setNumero(String numero) { this.numero = numero; }
-    public void setDataOrdine(Date dataOrdine) { this.dataOrdine = dataOrdine; }
-    public void setDataConsegnaPrevista(Date dataConsegnaPrevista) { this.dataConsegnaPrevista = dataConsegnaPrevista; }
-    public void setStato(String stato) { this.stato = stato; }
-    public void setTotale(double totale) { this.totale = totale; }
-    public void setNote(String note) { this.note = note; }
+    public void setSupplierId(int supplierId) { this.supplierId = supplierId; }
+    public void setSupplierName(String supplierName) { this.supplierName = supplierName; }
+    public void setNumber(String number) { this.number = number; }
+    public void setOrderDate(Date orderDate) { this.orderDate = orderDate; }
+    public void setExpectedDeliveryDate(Date expectedDeliveryDate) { this.expectedDeliveryDate = expectedDeliveryDate; }
+    public void setStatus(String status) { this.status = status; }
+    public void setTotal(double total) { this.total = total; }
+    public void setNotes(String notes) { this.notes = notes; }
     public void setItems(List<SupplierOrderItem> items) { this.items = items; }
 }

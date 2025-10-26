@@ -31,8 +31,8 @@ public class StockManager {
 
             // Get current stock and reserved quantity from database
             String query = """
-                SELECT quantita, quantita_riservata
-                FROM prodotti
+                SELECT quantity, reserved_quantity
+                FROM products
                 WHERE id = ?
             """;
 
@@ -41,8 +41,8 @@ public class StockManager {
                 ResultSet rs = pstmt.executeQuery();
 
                 if (rs.next()) {
-                    int currentStock = rs.getInt("quantita");
-                    int reservedStock = rs.getInt("quantita_riservata");
+                    int currentStock = rs.getInt("quantity");
+                    int reservedStock = rs.getInt("reserved_quantity");
                     int availableStock = currentStock - reservedStock;
 
                     // If editing existing document, add back the old quantity for this product
@@ -67,11 +67,11 @@ public class StockManager {
      * Get the old quantity of a product in an existing document
      */
     private static int getOldProductQuantity(Connection conn, int documentId, int productId, String documentType) throws SQLException {
-        String tableName = documentType.equals("ORDER") ? "dettagli_ordine" : "dettagli_fattura";
-        String columnName = documentType.equals("ORDER") ? "ordine_id" : "fattura_id";
+        String tableName = documentType.equals("ORDER") ? "order_details" : "invoice_details";
+        String columnName = documentType.equals("ORDER") ? "order_id" : "invoice_id";
 
         String query = String.format(
-            "SELECT quantita FROM %s WHERE %s = ? AND prodotto_id = ?",
+            "SELECT quantity FROM %s WHERE %s = ? AND product_id = ?",
             tableName, columnName
         );
 
@@ -80,7 +80,7 @@ public class StockManager {
             pstmt.setInt(2, productId);
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
-                return rs.getInt("quantita");
+                return rs.getInt("quantity");
             }
         }
         return 0;
@@ -99,9 +99,9 @@ public class StockManager {
 
         // Check if reservation already exists
         String checkQuery = """
-            SELECT id, quantita_riservata, stato
-            FROM prenotazioni_stock
-            WHERE prodotto_id = ? AND tipo_documento = ? AND documento_id = ?
+            SELECT id, reserved_quantity, status
+            FROM stock_reservations
+            WHERE product_id = ? AND document_type = ? AND document_id = ?
         """;
 
         try (PreparedStatement pstmt = conn.prepareStatement(checkQuery)) {
@@ -114,8 +114,8 @@ public class StockManager {
                 // Update existing reservation
                 int reservationId = rs.getInt("id");
                 String updateQuery = """
-                    UPDATE prenotazioni_stock
-                    SET quantita_riservata = ?, stato = 'ACTIVE', note = ?
+                    UPDATE stock_reservations
+                    SET reserved_quantity = ?, status = 'ACTIVE', notes = ?
                     WHERE id = ?
                 """;
 
@@ -128,8 +128,8 @@ public class StockManager {
             } else {
                 // Create new reservation
                 String insertQuery = """
-                    INSERT INTO prenotazioni_stock
-                    (prodotto_id, tipo_documento, documento_id, quantita_riservata, stato, note)
+                    INSERT INTO stock_reservations
+                    (product_id, document_type, document_id, reserved_quantity, status, notes)
                     VALUES (?, ?, ?, ?, 'ACTIVE', ?)
                 """;
 
@@ -154,9 +154,9 @@ public class StockManager {
             int documentId) throws SQLException {
 
         String updateQuery = """
-            UPDATE prenotazioni_stock
-            SET stato = 'CANCELLED'
-            WHERE tipo_documento = ? AND documento_id = ? AND stato = 'ACTIVE'
+            UPDATE stock_reservations
+            SET status = 'CANCELLED'
+            WHERE document_type = ? AND document_id = ? AND status = 'ACTIVE'
         """;
 
         try (PreparedStatement pstmt = conn.prepareStatement(updateQuery)) {
@@ -179,9 +179,9 @@ public class StockManager {
 
         // Get all active reservations for this document
         String getReservationsQuery = """
-            SELECT prodotto_id, quantita_riservata
-            FROM prenotazioni_stock
-            WHERE tipo_documento = ? AND documento_id = ? AND stato = 'ACTIVE'
+            SELECT product_id, reserved_quantity
+            FROM stock_reservations
+            WHERE document_type = ? AND document_id = ? AND status = 'ACTIVE'
         """;
 
         try (PreparedStatement pstmt = conn.prepareStatement(getReservationsQuery)) {
@@ -190,8 +190,8 @@ public class StockManager {
             ResultSet rs = pstmt.executeQuery();
 
             while (rs.next()) {
-                int productId = rs.getInt("prodotto_id");
-                int quantity = rs.getInt("quantita_riservata");
+                int productId = rs.getInt("product_id");
+                int quantity = rs.getInt("reserved_quantity");
 
                 // Decrement actual stock
                 decrementStock(conn, productId, quantity);
@@ -205,9 +205,9 @@ public class StockManager {
 
         // Mark reservations as COMPLETED
         String updateQuery = """
-            UPDATE prenotazioni_stock
-            SET stato = 'COMPLETED'
-            WHERE tipo_documento = ? AND documento_id = ? AND stato = 'ACTIVE'
+            UPDATE stock_reservations
+            SET status = 'COMPLETED'
+            WHERE document_type = ? AND document_id = ? AND status = 'ACTIVE'
         """;
 
         try (PreparedStatement pstmt = conn.prepareStatement(updateQuery)) {
@@ -250,7 +250,7 @@ public class StockManager {
 
         for (StockItem item : items) {
             // Increment stock
-            String updateQuery = "UPDATE prodotti SET quantita = quantita + ? WHERE id = ?";
+            String updateQuery = "UPDATE products SET quantity = quantity + ? WHERE id = ?";
             try (PreparedStatement pstmt = conn.prepareStatement(updateQuery)) {
                 pstmt.setInt(1, item.getQuantity());
                 pstmt.setInt(2, item.getProductId());
@@ -272,11 +272,11 @@ public class StockManager {
             int documentId,
             String documentType) throws SQLException {
 
-        String tableName = documentType.equals("ORDER") ? "dettagli_ordine" : "dettagli_fattura";
-        String columnName = documentType.equals("ORDER") ? "ordine_id" : "fattura_id";
+        String tableName = documentType.equals("ORDER") ? "order_details" : "invoice_details";
+        String columnName = documentType.equals("ORDER") ? "order_id" : "invoice_id";
 
         String query = String.format(
-            "SELECT prodotto_id, quantita FROM %s WHERE %s = ?",
+            "SELECT product_id, quantity FROM %s WHERE %s = ?",
             tableName, columnName
         );
 
@@ -284,11 +284,11 @@ public class StockManager {
             pstmt.setInt(1, documentId);
             ResultSet rs = pstmt.executeQuery();
 
-            String updateQuery = "UPDATE prodotti SET quantita = quantita + ? WHERE id = ?";
+            String updateQuery = "UPDATE products SET quantity = quantity + ? WHERE id = ?";
             try (PreparedStatement updatePstmt = conn.prepareStatement(updateQuery)) {
                 while (rs.next()) {
-                    int productId = rs.getInt("prodotto_id");
-                    int quantity = rs.getInt("quantita");
+                    int productId = rs.getInt("product_id");
+                    int quantity = rs.getInt("quantity");
 
                     updatePstmt.setInt(1, quantity);
                     updatePstmt.setInt(2, productId);
@@ -302,7 +302,7 @@ public class StockManager {
      * Helper: Decrement stock quantity
      */
     private static void decrementStock(Connection conn, int productId, int quantity) throws SQLException {
-        String updateQuery = "UPDATE prodotti SET quantita = quantita - ? WHERE id = ?";
+        String updateQuery = "UPDATE products SET quantity = quantity - ? WHERE id = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(updateQuery)) {
             pstmt.setInt(1, quantity);
             pstmt.setInt(2, productId);
@@ -324,8 +324,8 @@ public class StockManager {
             String note) throws SQLException {
 
         String movementQuery = """
-            INSERT INTO movimenti_magazzino
-            (prodotto_id, data, tipo, quantita, causale, documento_numero, documento_tipo, note)
+            INSERT INTO warehouse_movements
+            (product_id, date, type, quantity, reason, document_number, document_type, notes)
             VALUES (?, ?, 'OUTWARD', ?, ?, ?, ?, ?)
         """;
 
@@ -333,8 +333,8 @@ public class StockManager {
         String movementType = reason.equals("PURCHASE") ? "INWARD" : "OUTWARD";
 
         movementQuery = """
-            INSERT INTO movimenti_magazzino
-            (prodotto_id, data, tipo, quantita, causale, documento_numero, documento_tipo, note)
+            INSERT INTO warehouse_movements
+            (product_id, date, type, quantity, reason, document_number, document_type, notes)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """;
 
@@ -356,8 +356,8 @@ public class StockManager {
      */
     public static int getAvailableStock(Connection conn, int productId) throws SQLException {
         String query = """
-            SELECT quantita, quantita_riservata
-            FROM prodotti
+            SELECT quantity, reserved_quantity
+            FROM products
             WHERE id = ?
         """;
 
@@ -366,8 +366,8 @@ public class StockManager {
             ResultSet rs = pstmt.executeQuery();
 
             if (rs.next()) {
-                int stock = rs.getInt("quantita");
-                int reserved = rs.getInt("quantita_riservata");
+                int stock = rs.getInt("quantity");
+                int reserved = rs.getInt("reserved_quantity");
                 return stock - reserved;
             }
         }
@@ -411,8 +411,8 @@ public class StockManager {
      */
     public static void deleteWarehouseMovements(Connection conn, String documentType, String documentNumber) throws SQLException {
         String deleteQuery = """
-            DELETE FROM movimenti_magazzino
-            WHERE documento_tipo = ? AND documento_numero = ?
+            DELETE FROM warehouse_movements
+            WHERE document_type = ? AND document_number = ?
         """;
 
         try (PreparedStatement pstmt = conn.prepareStatement(deleteQuery)) {

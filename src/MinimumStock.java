@@ -1,43 +1,43 @@
 public class MinimumStock {
-    private int prodottoId;
-    private String prodottoNome;
-    private int quantitaMinima;
-    private int quantitaRiordino;
-    private int leadTimeGiorni;
-    private Integer fornitorePreferito;
-    private String fornitoreNome;
-    private String note;
-    
-    public MinimumStock(int prodottoId, String prodottoNome, int quantitaMinima, 
-                       int quantitaRiordino, int leadTimeGiorni, Integer fornitorePreferito, 
-                       String fornitoreNome, String note) {
-        this.prodottoId = prodottoId;
-        this.prodottoNome = prodottoNome;
-        this.quantitaMinima = quantitaMinima;
-        this.quantitaRiordino = quantitaRiordino;
-        this.leadTimeGiorni = leadTimeGiorni;
-        this.fornitorePreferito = fornitorePreferito;
-        this.fornitoreNome = fornitoreNome;
-        this.note = note;
+    private int productId;
+    private String productName;
+    private int minimumQuantity;
+    private int reorderQuantity;
+    private int leadTimeDays;
+    private Integer preferredSupplier;
+    private String supplierName;
+    private String notes;
+
+    public MinimumStock(int productId, String productName, int minimumQuantity,
+                       int reorderQuantity, int leadTimeDays, Integer preferredSupplier,
+                       String supplierName, String notes) {
+        this.productId = productId;
+        this.productName = productName;
+        this.minimumQuantity = minimumQuantity;
+        this.reorderQuantity = reorderQuantity;
+        this.leadTimeDays = leadTimeDays;
+        this.preferredSupplier = preferredSupplier;
+        this.supplierName = supplierName;
+        this.notes = notes;
     }
-    
+
     // Getters
-    public int getProdottoId() { return prodottoId; }
-    public String getProdottoNome() { return prodottoNome; }
-    public int getQuantitaMinima() { return quantitaMinima; }
-    public int getQuantitaRiordino() { return quantitaRiordino; }
-    public int getLeadTimeGiorni() { return leadTimeGiorni; }
-    public Integer getFornitorePreferito() { return fornitorePreferito; }
-    public String getFornitoreNome() { return fornitoreNome; }
-    public String getNote() { return note; }
-    
+    public int getProductId() { return productId; }
+    public String getProductName() { return productName; }
+    public int getMinimumQuantity() { return minimumQuantity; }
+    public int getReorderQuantity() { return reorderQuantity; }
+    public int getLeadTimeDays() { return leadTimeDays; }
+    public Integer getPreferredSupplier() { return preferredSupplier; }
+    public String getSupplierName() { return supplierName; }
+    public String getNotes() { return notes; }
+
     // Setters
-    public void setProdottoId(int prodottoId) { this.prodottoId = prodottoId; }
-    public void setProdottoNome(String prodottoNome) { this.prodottoNome = prodottoNome; }
-    public void setQuantitaMinima(int quantitaMinima) { this.quantitaMinima = quantitaMinima; }
-    public void setQuantitaRiordino(int quantitaRiordino) { this.quantitaRiordino = quantitaRiordino; }
-    public void setLeadTimeGiorni(int leadTimeGiorni) { this.leadTimeGiorni = leadTimeGiorni; }
-    public void setFornitorePreferito(Integer fornitorePreferito) { this.fornitorePreferito = fornitorePreferito; }
-    public void setFornitoreNome(String fornitoreNome) { this.fornitoreNome = fornitoreNome; }
-    public void setNote(String note) { this.note = note; }
+    public void setProductId(int productId) { this.productId = productId; }
+    public void setProductName(String productName) { this.productName = productName; }
+    public void setMinimumQuantity(int minimumQuantity) { this.minimumQuantity = minimumQuantity; }
+    public void setReorderQuantity(int reorderQuantity) { this.reorderQuantity = reorderQuantity; }
+    public void setLeadTimeDays(int leadTimeDays) { this.leadTimeDays = leadTimeDays; }
+    public void setPreferredSupplier(Integer preferredSupplier) { this.preferredSupplier = preferredSupplier; }
+    public void setSupplierName(String supplierName) { this.supplierName = supplierName; }
+    public void setNotes(String notes) { this.notes = notes; }
 }

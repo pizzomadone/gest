@@ -4,38 +4,38 @@ import java.util.ArrayList;
 
 public class Order {
     private int id;
-    private int clienteId;
-    private String clienteNome;
-    private Date dataOrdine;
-    private String stato;
-    private double totale;
+    private int customerId;
+    private String customerName;
+    private Date orderDate;
+    private String status;
+    private double total;
     private List<OrderItem> items;
-    
-    public Order(int id, int clienteId, String clienteNome, Date dataOrdine, String stato, double totale) {
+
+    public Order(int id, int customerId, String customerName, Date orderDate, String status, double total) {
         this.id = id;
-        this.clienteId = clienteId;
-        this.clienteNome = clienteNome;
-        this.dataOrdine = dataOrdine;
-        this.stato = stato;
-        this.totale = totale;
+        this.customerId = customerId;
+        this.customerName = customerName;
+        this.orderDate = orderDate;
+        this.status = status;
+        this.total = total;
         this.items = new ArrayList<>();
     }
-    
+
     // Getters
     public int getId() { return id; }
-    public int getClienteId() { return clienteId; }
-    public String getClienteNome() { return clienteNome; }
-    public Date getDataOrdine() { return dataOrdine; }
-    public String getStato() { return stato; }
-    public double getTotale() { return totale; }
+    public int getCustomerId() { return customerId; }
+    public String getCustomerName() { return customerName; }
+    public Date getOrderDate() { return orderDate; }
+    public String getStatus() { return status; }
+    public double getTotal() { return total; }
     public List<OrderItem> getItems() { return items; }
-    
+
     // Setters
     public void setId(int id) { this.id = id; }
-    public void setClienteId(int clienteId) { this.clienteId = clienteId; }
-    public void setClienteNome(String clienteNome) { this.clienteNome = clienteNome; }
-    public void setDataOrdine(Date dataOrdine) { this.dataOrdine = dataOrdine; }
-    public void setStato(String stato) { this.stato = stato; }
-    public void setTotale(double totale) { this.totale = totale; }
+    public void setCustomerId(int customerId) { this.customerId = customerId; }
+    public void setCustomerName(String customerName) { this.customerName = customerName; }
+    public void setOrderDate(Date orderDate) { this.orderDate = orderDate; }
+    public void setStatus(String status) { this.status = status; }
+    public void setTotal(double total) { this.total = total; }
     public void setItems(List<OrderItem> items) { this.items = items; }
 }

@@ -50,7 +50,7 @@ public class ProductsPanel extends JPanel {
         productsTable.getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         productsTable.getSelectionModel().addListSelectionListener(e -> updateButtonStates());
         
-        // Aggiungi mouse listener per doppio click
+        // Add mouse listener for double click
         productsTable.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent evt) {
@@ -100,22 +100,22 @@ public class ProductsPanel extends JPanel {
             Connection conn = DatabaseManager.getInstance().getConnection();
             String query = """
                 SELECT p.*, f.ragione_sociale as supplier_name
-                FROM prodotti p
+                FROM products p
                 LEFT JOIN fornitori f ON p.supplier_id = f.id
-                ORDER BY p.nome
+                ORDER BY p.name
             """;
             try (Statement stmt = conn.createStatement();
                  ResultSet rs = stmt.executeQuery(query)) {
                 while (rs.next()) {
                     Vector<Object> row = new Vector<>();
                     row.add(rs.getInt("id"));
-                    row.add(rs.getString("codice"));
-                    row.add(rs.getString("nome"));
-                    row.add(rs.getString("descrizione"));
-                    row.add(rs.getDouble("prezzo"));
+                    row.add(rs.getString("code"));
+                    row.add(rs.getString("name"));
+                    row.add(rs.getString("description"));
+                    row.add(rs.getDouble("price"));
 
-                    int physicalStock = rs.getInt("quantita");
-                    int reservedStock = rs.getInt("quantita_riservata");
+                    int physicalStock = rs.getInt("quantity");
+                    int reservedStock = rs.getInt("reserved_quantity");
                     int availableStock = physicalStock - reservedStock;
 
                     row.add(physicalStock);
@@ -149,10 +149,10 @@ public class ProductsPanel extends JPanel {
             Connection conn = DatabaseManager.getInstance().getConnection();
             String query = """
                 SELECT p.*, f.ragione_sociale as supplier_name
-                FROM prodotti p
+                FROM products p
                 LEFT JOIN fornitori f ON p.supplier_id = f.id
-                WHERE p.codice LIKE ? OR p.nome LIKE ? OR p.descrizione LIKE ?
-                ORDER BY p.nome
+                WHERE p.code LIKE ? OR p.name LIKE ? OR p.description LIKE ?
+                ORDER BY p.name
             """;
             String searchPattern = "%" + searchTerm + "%";
 
@@ -165,13 +165,13 @@ public class ProductsPanel extends JPanel {
                     while (rs.next()) {
                         Vector<Object> row = new Vector<>();
                         row.add(rs.getInt("id"));
-                        row.add(rs.getString("codice"));
-                        row.add(rs.getString("nome"));
-                        row.add(rs.getString("descrizione"));
-                        row.add(rs.getDouble("prezzo"));
+                        row.add(rs.getString("code"));
+                        row.add(rs.getString("name"));
+                        row.add(rs.getString("description"));
+                        row.add(rs.getDouble("price"));
 
-                        int physicalStock = rs.getInt("quantita");
-                        int reservedStock = rs.getInt("quantita_riservata");
+                        int physicalStock = rs.getInt("quantity");
+                        int reservedStock = rs.getInt("reserved_quantity");
                         int availableStock = physicalStock - reservedStock;
 
                         row.add(physicalStock);
@@ -220,7 +220,7 @@ public class ProductsPanel extends JPanel {
                 Connection conn = DatabaseManager.getInstance().getConnection();
                 String query = """
                     SELECT p.*, f.ragione_sociale as supplier_name
-                    FROM prodotti p
+                    FROM products p
                     LEFT JOIN fornitori f ON p.supplier_id = f.id
                     WHERE p.id = ?
                 """;
@@ -233,11 +233,11 @@ public class ProductsPanel extends JPanel {
 
                             Product product = new Product(
                                 rs.getInt("id"),
-                                rs.getString("codice"),
-                                rs.getString("nome"),
-                                rs.getString("descrizione"),
-                                rs.getDouble("prezzo"),
-                                rs.getInt("quantita"),
+                                rs.getString("code"),
+                                rs.getString("name"),
+                                rs.getString("description"),
+                                rs.getDouble("price"),
+                                rs.getInt("quantity"),
                                 rs.getString("category"),
                                 rs.getString("alternative_sku"),
                                 rs.getDouble("weight"),
@@ -264,7 +264,7 @@ public class ProductsPanel extends JPanel {
         int selectedRow = productsTable.getSelectedRow();
         if (selectedRow != -1) {
             int id = (int)tableModel.getValueAt(selectedRow, 0);
-            String nome = (String)tableModel.getValueAt(selectedRow, 2);
+            String name = (String)tableModel.getValueAt(selectedRow, 2);
             
             try {
                 Connection conn = DatabaseManager.getInstance().getConnection();
@@ -279,7 +279,7 @@ public class ProductsPanel extends JPanel {
                 
                 if (hasOrders || hasInvoices || hasSupplierOrders || hasPriceLists || hasWarehouseMovements || hasMinStock) {
                     StringBuilder message = new StringBuilder();
-                    message.append("Cannot delete product '").append(nome).append("' because it has:\n");
+                    message.append("Cannot delete product '").append(name).append("' because it has:\n");
                     
                     if (hasOrders) message.append("- Customer orders\n");
                     if (hasInvoices) message.append("- Invoice entries\n");
@@ -301,20 +301,20 @@ public class ProductsPanel extends JPanel {
                         null, options, options[0]);
                     
                     if (choice == 1) { // Force Delete
-                        performCascadeDelete(conn, id, nome);
+                        performCascadeDelete(conn, id, name);
                     }
                     return;
                 }
-                
+
                 // Safe to delete - no foreign key references
                 int result = JOptionPane.showConfirmDialog(this,
-                    "Are you sure you want to delete the product '" + nome + "'?",
+                    "Are you sure you want to delete the product '" + name + "'?",
                     "Confirm Deletion",
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE);
                     
                 if (result == JOptionPane.YES_OPTION) {
-                    String query = "DELETE FROM prodotti WHERE id = ?";
+                    String query = "DELETE FROM products WHERE id = ?";
                     try (PreparedStatement pstmt = conn.prepareStatement(query)) {
                         pstmt.setInt(1, id);
                         pstmt.executeUpdate();
@@ -335,9 +335,9 @@ public class ProductsPanel extends JPanel {
         }
     }
     
-    private void performCascadeDelete(Connection conn, int id, String nome) {
+    private void performCascadeDelete(Connection conn, int id, String name) {
         int confirmResult = JOptionPane.showConfirmDialog(this,
-            "WARNING: This will permanently delete product '" + nome + "' and ALL related data:\n" +
+            "WARNING: This will permanently delete product '" + name + "' and ALL related data:\n" +
             "- All customer orders containing this product\n" +
             "- All invoice entries\n" +
             "- All supplier orders\n" +
@@ -417,18 +417,18 @@ public class ProductsPanel extends JPanel {
                 }
                 
                 // 8. Finally delete the product
-                String deleteProduct = "DELETE FROM prodotti WHERE id = ?";
+                String deleteProduct = "DELETE FROM products WHERE id = ?";
                 try (PreparedStatement pstmt = conn.prepareStatement(deleteProduct)) {
                     pstmt.setInt(1, id);
                     pstmt.executeUpdate();
                     System.out.println("Deleted product");
                 }
-                
+
                 conn.commit();
                 loadProducts();
-                
+
                 JOptionPane.showMessageDialog(this,
-                    "Product '" + nome + "' and all related records deleted successfully",
+                    "Product '" + name + "' and all related records deleted successfully",
                     "Force Delete Completed",
                     JOptionPane.INFORMATION_MESSAGE);
                     

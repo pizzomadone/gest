@@ -18,52 +18,52 @@ public class WarehouseReportPanel extends JPanel {
     private SimpleDateFormat dateFormat;
     private JTextField startDateField;
     private JTextField endDateField;
-    private JComboBox<String> typeCombo; // Made it a field to access in loadMovementsData
-    
+    private JComboBox<String> typeCombo;
+
     public WarehouseReportPanel() {
         dateFormat = new SimpleDateFormat("dd/MM/yyyy");
-        
+
         setupPanel();
         initComponents();
         loadData();
     }
-    
+
     private void setupPanel() {
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
     }
-    
+
     private void initComponents() {
         tabbedPane = new JTabbedPane();
-        
+
         // Product Status Tab
         JPanel productsPanel = createProductsPanel();
         tabbedPane.addTab("Product Status", productsPanel);
-        
+
         // Movements Tab
         JPanel movementsPanel = createMovementsPanel();
         tabbedPane.addTab("Movement Analysis", movementsPanel);
-        
+
         add(tabbedPane, BorderLayout.CENTER);
     }
-    
+
     private JPanel createProductsPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        
+
         // General Statistics
         JPanel statsPanel = new JPanel(new GridLayout(1, 4, 10, 10));
         statsPanel.setBorder(BorderFactory.createTitledBorder("General Statistics"));
-        
+
         JLabel totalProductsLabel = new JLabel("Total Products: 0");
         JLabel totalValueLabel = new JLabel("Total Value: € 0.00");
         JLabel lowStockLabel = new JLabel("Low Stock Products: 0");
         JLabel outOfStockLabel = new JLabel("Out of Stock Products: 0");
-        
+
         statsPanel.add(totalProductsLabel);
         statsPanel.add(totalValueLabel);
         statsPanel.add(lowStockLabel);
         statsPanel.add(outOfStockLabel);
-        
+
         // Products Table
         String[] columns = {"Code", "Product", "Quantity", "Unit Value", "Total Value", "Status"};
         productsModel = new DefaultTableModel(columns, 0) {
@@ -73,56 +73,56 @@ public class WarehouseReportPanel extends JPanel {
             }
         };
         productsTable = new JTable(productsModel);
-        
+
         // Buttons
         JPanel buttonPanel = new JPanel();
         JButton printButton = new JButton("Print Report");
         JButton exportButton = new JButton("Export CSV");
         JButton refreshButton = new JButton("Refresh");
-        
+
         printButton.addActionListener(e -> printProductsReport());
         exportButton.addActionListener(e -> exportProductsToCSV());
         refreshButton.addActionListener(e -> loadProductsData());
-        
+
         buttonPanel.add(printButton);
         buttonPanel.add(exportButton);
         buttonPanel.add(refreshButton);
-        
+
         panel.add(statsPanel, BorderLayout.NORTH);
         panel.add(new JScrollPane(productsTable), BorderLayout.CENTER);
         panel.add(buttonPanel, BorderLayout.SOUTH);
-        
+
         return panel;
     }
-    
+
     private JPanel createMovementsPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        
+
         // Filters
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         filterPanel.setBorder(BorderFactory.createTitledBorder("Filters"));
-        
+
         startDateField = new JTextField(10);
         endDateField = new JTextField(10);
         typeCombo = new JComboBox<>(new String[]{"All", "INWARD", "OUTWARD"});
-        
+
         // Set default dates (last month)
         java.util.Calendar cal = java.util.Calendar.getInstance();
         endDateField.setText(DateUtils.formatDate(cal.getTime(), dateFormat));
         cal.add(java.util.Calendar.MONTH, -1);
         startDateField.setText(DateUtils.formatDate(cal.getTime(), dateFormat));
-        
+
         filterPanel.add(new JLabel("From:"));
         filterPanel.add(startDateField);
         filterPanel.add(new JLabel("To:"));
         filterPanel.add(endDateField);
         filterPanel.add(new JLabel("Type:"));
         filterPanel.add(typeCombo);
-        
+
         JButton applyButton = new JButton("Apply");
         applyButton.addActionListener(e -> loadMovementsData());
         filterPanel.add(applyButton);
-        
+
         // Movements Table
         String[] columns = {"Date", "Product", "Type", "Quantity", "Reason", "Document"};
         movementsModel = new DefaultTableModel(columns, 0) {
@@ -132,62 +132,62 @@ public class WarehouseReportPanel extends JPanel {
             }
         };
         movementsTable = new JTable(movementsModel);
-        
+
         // Buttons
         JPanel buttonPanel = new JPanel();
         JButton printButton = new JButton("Print Report");
         JButton exportButton = new JButton("Export CSV");
-        
+
         printButton.addActionListener(e -> printMovementsReport());
         exportButton.addActionListener(e -> exportMovementsToCSV());
-        
+
         buttonPanel.add(printButton);
         buttonPanel.add(exportButton);
-        
+
         panel.add(filterPanel, BorderLayout.NORTH);
         panel.add(new JScrollPane(movementsTable), BorderLayout.CENTER);
         panel.add(buttonPanel, BorderLayout.SOUTH);
-        
+
         return panel;
     }
-    
+
     private void loadData() {
         loadProductsData();
         loadMovementsData();
     }
-    
+
     private void loadProductsData() {
         productsModel.setRowCount(0);
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
             String query = """
-                SELECT p.*, COALESCE(sm.quantita_minima, 0) as quantita_minima
-                FROM prodotti p
-                LEFT JOIN scorte_minime sm ON p.id = sm.prodotto_id
-                ORDER BY p.nome
+                SELECT p.*, COALESCE(sm.minimum_quantity, 0) as minimum_quantity
+                FROM products p
+                LEFT JOIN minimum_stock sm ON p.id = sm.product_id
+                ORDER BY p.name
             """;
-            
+
             int totalProducts = 0;
             double totalValue = 0;
             int lowStock = 0;
             int outOfStock = 0;
-            
+
             try (Statement stmt = conn.createStatement();
                  ResultSet rs = stmt.executeQuery(query)) {
                 while (rs.next()) {
                     Vector<Object> row = new Vector<>();
-                    row.add(rs.getString("codice"));
-                    row.add(rs.getString("nome"));
-                    
-                    int quantity = rs.getInt("quantita");
-                    double price = rs.getDouble("prezzo");
+                    row.add(rs.getString("code"));
+                    row.add(rs.getString("name"));
+
+                    int quantity = rs.getInt("quantity");
+                    double price = rs.getDouble("price");
                     double totalValueProduct = quantity * price;
-                    int minQuantity = rs.getInt("quantita_minima");
-                    
+                    int minQuantity = rs.getInt("minimum_quantity");
+
                     row.add(quantity);
                     row.add(String.format("%.2f", price));
                     row.add(String.format("%.2f", totalValueProduct));
-                    
+
                     // Determine status
                     String status;
                     if (quantity <= 0) {
@@ -200,16 +200,16 @@ public class WarehouseReportPanel extends JPanel {
                         status = "OK";
                     }
                     row.add(status);
-                    
+
                     productsModel.addRow(row);
                     totalProducts++;
                     totalValue += totalValueProduct;
                 }
             }
-            
+
             // Update statistics
             updateStatistics(totalProducts, totalValue, lowStock, outOfStock);
-            
+
         } catch (SQLException e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this,
@@ -217,13 +217,13 @@ public class WarehouseReportPanel extends JPanel {
                 "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-    
+
     private void updateStatistics(int totalProducts, double totalValue, int lowStock, int outOfStock) {
         try {
             // Get the stats panel from the products tab
             JPanel productsTab = (JPanel) tabbedPane.getComponentAt(0);
             JPanel statsPanel = (JPanel) productsTab.getComponent(0);
-            
+
             if (statsPanel.getComponentCount() >= 4) {
                 ((JLabel) statsPanel.getComponent(0)).setText("Total Products: " + totalProducts);
                 ((JLabel) statsPanel.getComponent(1)).setText(String.format("Total Value: € %.2f", totalValue));
@@ -235,81 +235,81 @@ public class WarehouseReportPanel extends JPanel {
             System.err.println("Failed to update statistics: " + e.getMessage());
         }
     }
-    
+
     private void loadMovementsData() {
         movementsModel.setRowCount(0);
         try {
             String startDateText = startDateField.getText().trim();
             String endDateText = endDateField.getText().trim();
             String selectedType = (String) typeCombo.getSelectedItem();
-            
+
             Connection conn = DatabaseManager.getInstance().getConnection();
             String query = """
-                SELECT m.*, p.nome as prodotto_nome
-                FROM movimenti_magazzino m
-                LEFT JOIN prodotti p ON m.prodotto_id = p.id
+                SELECT m.*, p.name as product_name
+                FROM warehouse_movements m
+                LEFT JOIN products p ON m.product_id = p.id
                 WHERE 1=1
             """;
-            
+
             // Build query based on filters
             boolean hasDateFilter = false;
             boolean hasTypeFilter = false;
             Date startDate = null;
             Date endDate = null;
-            
+
             if (!startDateText.isEmpty() && !endDateText.isEmpty()) {
                 try {
                     startDate = DateUtils.parseDate(startDateText, dateFormat);
                     endDate = DateUtils.parseDate(endDateText, dateFormat);
                     if (startDate != null && endDate != null) {
-                        query += " AND DATE(m.data) >= DATE(?) AND DATE(m.data) <= DATE(?)";
+                        query += " AND DATE(m.date) >= DATE(?) AND DATE(m.date) <= DATE(?)";
                         hasDateFilter = true;
                     }
                 } catch (Exception e) {
                     // Ignore date parsing errors and load all data
                 }
             }
-            
+
             if (selectedType != null && !"All".equals(selectedType)) {
-                query += " AND m.tipo = ?";
+                query += " AND m.type = ?";
                 hasTypeFilter = true;
             }
-            
-            query += " ORDER BY m.data DESC";
-            
+
+            query += " ORDER BY m.date DESC";
+
             try (PreparedStatement pstmt = conn.prepareStatement(query)) {
                 int paramIndex = 1;
-                
+
                 if (hasDateFilter && startDate != null && endDate != null) {
                     pstmt.setString(paramIndex++, DateUtils.formatDate(startDate, new SimpleDateFormat("yyyy-MM-dd")));
                     pstmt.setString(paramIndex++, DateUtils.formatDate(endDate, new SimpleDateFormat("yyyy-MM-dd")));
                 }
-                
+
                 if (hasTypeFilter) {
                     pstmt.setString(paramIndex, selectedType);
                 }
-                
+
                 ResultSet rs = pstmt.executeQuery();
-                
+
                 while (rs.next()) {
                     Vector<Object> row = new Vector<>();
-                    
-                    Date movementDate = DateUtils.parseDate(rs, "data");
+
+                    Date movementDate = DateUtils.parseDate(rs, "date");
                     if (movementDate != null) {
                         row.add(DateUtils.formatDate(movementDate, dateFormat));
                     } else {
                         row.add("N/A");
                     }
-                    
-                    String productName = rs.getString("prodotto_nome");
+
+                    String productName = rs.getString("product_name");
                     row.add(productName != null ? productName : "Product N/A");
-                    row.add(rs.getString("tipo"));
-                    row.add(rs.getInt("quantita"));
-                    row.add(rs.getString("causale"));
-                    
-                    String document = rs.getString("documento_tipo");
+                    row.add(rs.getString("type"));
+                    row.add(rs.getInt("quantity"));
+                    row.add(rs.getString("reason"));
+
+                    String document = rs.getString("document_type");
                     if (document != null && !document.isEmpty()) {
-                        String docNumber = rs.getString("documento_numero");
+                        String docNumber = rs.getString("document_number");
                         if (docNumber != null && !docNumber.isEmpty()) {
                             document += " " + docNumber;
                         }
@@ -317,7 +317,7 @@ public class WarehouseReportPanel extends JPanel {
                         document = "";
                     }
                     row.add(document);
-                    
+
                     movementsModel.addRow(row);
                 }
             }
@@ -328,7 +328,7 @@ public class WarehouseReportPanel extends JPanel {
                 "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-    
+
     private void printProductsReport() {
         MessageFormat header = new MessageFormat("Warehouse Report - Product Status");
         MessageFormat footer = new MessageFormat("Page {0,number,integer}");
@@ -341,7 +341,7 @@ public class WarehouseReportPanel extends JPanel {
             e.printStackTrace();
         }
     }
-    
+
     private void printMovementsReport() {
         MessageFormat header = new MessageFormat("Warehouse Report - Movement Analysis");
         MessageFormat footer = new MessageFormat("Page {0,number,integer}");
@@ -354,12 +354,12 @@ public class WarehouseReportPanel extends JPanel {
             e.printStackTrace();
         }
     }
-    
+
     private void exportProductsToCSV() {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Save CSV Report");
         fileChooser.setSelectedFile(new File("warehouse_report.csv"));
-        
+
         if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
             try (PrintWriter writer = new PrintWriter(new FileWriter(fileChooser.getSelectedFile()))) {
                 // Headers
@@ -367,7 +367,7 @@ public class WarehouseReportPanel extends JPanel {
                     writer.print(productsModel.getColumnName(i));
                     writer.print(i < productsModel.getColumnCount() - 1 ? "," : "\n");
                 }
-                
+
                 // Data
                 for (int row = 0; row < productsModel.getRowCount(); row++) {
                     for (int col = 0; col < productsModel.getColumnCount(); col++) {
@@ -379,12 +379,12 @@ public class WarehouseReportPanel extends JPanel {
                         writer.print(col < productsModel.getColumnCount() - 1 ? "," : "\n");
                     }
                 }
-                
+
                 JOptionPane.showMessageDialog(this,
                     "Report exported successfully",
                     "Export Completed",
                     JOptionPane.INFORMATION_MESSAGE);
-                
+
             } catch (IOException e) {
                 e.printStackTrace();
                 JOptionPane.showMessageDialog(this,
@@ -393,25 +393,25 @@ public class WarehouseReportPanel extends JPanel {
             }
         }
     }
-    
+
     private void exportMovementsToCSV() {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Save Movements CSV Report");
         fileChooser.setSelectedFile(new File("warehouse_movements_report.csv"));
-        
+
         if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
             try (PrintWriter writer = new PrintWriter(new FileWriter(fileChooser.getSelectedFile()))) {
                 // Headers
                 writer.println("Warehouse Movements Report");
                 writer.println("Period: " + startDateField.getText() + " - " + endDateField.getText());
                 writer.println();
-                
+
                 // Column headers
                 for (int i = 0; i < movementsModel.getColumnCount(); i++) {
                     writer.print(movementsModel.getColumnName(i));
                     writer.print(i < movementsModel.getColumnCount() - 1 ? "," : "\n");
                 }
-                
+
                 // Data
                 for (int row = 0; row < movementsModel.getRowCount(); row++) {
                     for (int col = 0; col < movementsModel.getColumnCount(); col++) {
@@ -423,12 +423,12 @@ public class WarehouseReportPanel extends JPanel {
                         writer.print(col < movementsModel.getColumnCount() - 1 ? "," : "\n");
                     }
                 }
-                
+
                 JOptionPane.showMessageDialog(this,
                     "Movements report exported successfully",
                     "Export Completed",
                     JOptionPane.INFORMATION_MESSAGE);
-                
+
             } catch (IOException e) {
                 e.printStackTrace();
                 JOptionPane.showMessageDialog(this,

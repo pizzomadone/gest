@@ -4,174 +4,174 @@ import java.awt.event.*;
 import java.sql.*;
 
 public class CustomerDialog extends JDialog {
-    private JTextField nomeField;
-    private JTextField cognomeField;
+    private JTextField firstNameField;
+    private JTextField lastNameField;
     private JTextField emailField;
-    private JTextField telefonoField;
-    private JTextArea indirizzoArea;
+    private JTextField phoneField;
+    private JTextArea addressArea;
     private boolean customerSaved = false;
     private Customer customer;
-    
+
     // Modified constructor to accept JFrame instead of JDialog
     public CustomerDialog(JFrame parent, Customer customer) {
         super(parent, customer == null ? "New Customer" : "Edit Customer", true);
         this.customer = customer;
-        
+
         setupDialog();
         initComponents();
         if (customer != null) {
             loadCustomerData();
         }
     }
-    
+
     // Keep the original constructor for backward compatibility with dialogs
     public CustomerDialog(JDialog parent, Customer customer) {
         super(parent, customer == null ? "New Customer" : "Edit Customer", true);
         this.customer = customer;
-        
+
         setupDialog();
         initComponents();
         if (customer != null) {
             loadCustomerData();
         }
     }
-    
+
     private void setupDialog() {
         setSize(400, 500);
         setLocationRelativeTo(getOwner());
         setLayout(new BorderLayout(10, 10));
     }
-    
+
     private void initComponents() {
         // Form panel
         JPanel formPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        
+
         // First Name
         gbc.gridx = 0; gbc.gridy = 0;
         formPanel.add(new JLabel("First Name:"), gbc);
-        
+
         gbc.gridx = 1;
-        nomeField = new JTextField(20);
-        formPanel.add(nomeField, gbc);
-        
+        firstNameField = new JTextField(20);
+        formPanel.add(firstNameField, gbc);
+
         // Last Name
         gbc.gridx = 0; gbc.gridy = 1;
         formPanel.add(new JLabel("Last Name:"), gbc);
-        
+
         gbc.gridx = 1;
-        cognomeField = new JTextField(20);
-        formPanel.add(cognomeField, gbc);
-        
+        lastNameField = new JTextField(20);
+        formPanel.add(lastNameField, gbc);
+
         // Email
         gbc.gridx = 0; gbc.gridy = 2;
         formPanel.add(new JLabel("Email:"), gbc);
-        
+
         gbc.gridx = 1;
         emailField = new JTextField(20);
         formPanel.add(emailField, gbc);
-        
+
         // Phone
         gbc.gridx = 0; gbc.gridy = 3;
         formPanel.add(new JLabel("Phone:"), gbc);
-        
+
         gbc.gridx = 1;
-        telefonoField = new JTextField(20);
-        formPanel.add(telefonoField, gbc);
-        
+        phoneField = new JTextField(20);
+        formPanel.add(phoneField, gbc);
+
         // Address
         gbc.gridx = 0; gbc.gridy = 4;
         formPanel.add(new JLabel("Address:"), gbc);
-        
+
         gbc.gridx = 1;
-        indirizzoArea = new JTextArea(4, 20);
-        indirizzoArea.setLineWrap(true);
-        indirizzoArea.setWrapStyleWord(true);
-        formPanel.add(new JScrollPane(indirizzoArea), gbc);
-        
+        addressArea = new JTextArea(4, 20);
+        addressArea.setLineWrap(true);
+        addressArea.setWrapStyleWord(true);
+        formPanel.add(new JScrollPane(addressArea), gbc);
+
         // Button panel
         JPanel buttonPanel = new JPanel();
         JButton saveButton = new JButton("Save");
         JButton cancelButton = new JButton("Cancel");
-        
+
         saveButton.addActionListener(e -> saveCustomer());
         cancelButton.addActionListener(e -> dispose());
-        
+
         buttonPanel.add(saveButton);
         buttonPanel.add(cancelButton);
-        
+
         // Main layout
         add(new JScrollPane(formPanel), BorderLayout.CENTER);
         add(buttonPanel, BorderLayout.SOUTH);
     }
-    
+
     private void loadCustomerData() {
-        nomeField.setText(customer.getNome());
-        cognomeField.setText(customer.getCognome());
+        firstNameField.setText(customer.getFirstName());
+        lastNameField.setText(customer.getLastName());
         emailField.setText(customer.getEmail());
-        telefonoField.setText(customer.getTelefono());
-        indirizzoArea.setText(customer.getIndirizzo());
+        phoneField.setText(customer.getPhone());
+        addressArea.setText(customer.getAddress());
     }
-    
+
     private void saveCustomer() {
         try {
             // Validation
-            String nome = nomeField.getText().trim();
-            String cognome = cognomeField.getText().trim();
+            String firstName = firstNameField.getText().trim();
+            String lastName = lastNameField.getText().trim();
             String email = emailField.getText().trim();
-            String telefono = telefonoField.getText().trim();
-            String indirizzo = indirizzoArea.getText().trim();
-            
-            if (nome.isEmpty() || cognome.isEmpty()) {
+            String phone = phoneField.getText().trim();
+            String address = addressArea.getText().trim();
+
+            if (firstName.isEmpty() || lastName.isEmpty()) {
                 JOptionPane.showMessageDialog(this,
                     "First Name and Last Name fields are required",
                     "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            
+
             Connection conn = DatabaseManager.getInstance().getConnection();
             if (customer == null) { // New customer
                 String query = """
-                    INSERT INTO clienti (nome, cognome, email, telefono, indirizzo)
+                    INSERT INTO customers (first_name, last_name, email, phone, address)
                     VALUES (?, ?, ?, ?, ?)
                 """;
                 try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                    pstmt.setString(1, nome);
-                    pstmt.setString(2, cognome);
+                    pstmt.setString(1, firstName);
+                    pstmt.setString(2, lastName);
                     pstmt.setString(3, email);
-                    pstmt.setString(4, telefono);
-                    pstmt.setString(5, indirizzo);
+                    pstmt.setString(4, phone);
+                    pstmt.setString(5, address);
                     pstmt.executeUpdate();
                 }
             } else { // Edit customer
                 String query = """
-                    UPDATE clienti
-                    SET nome = ?, cognome = ?, email = ?, telefono = ?, indirizzo = ?
+                    UPDATE customers
+                    SET first_name = ?, last_name = ?, email = ?, phone = ?, address = ?
                     WHERE id = ?
                 """;
                 try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                    pstmt.setString(1, nome);
-                    pstmt.setString(2, cognome);
+                    pstmt.setString(1, firstName);
+                    pstmt.setString(2, lastName);
                     pstmt.setString(3, email);
-                    pstmt.setString(4, telefono);
-                    pstmt.setString(5, indirizzo);
+                    pstmt.setString(4, phone);
+                    pstmt.setString(5, address);
                     pstmt.setInt(6, customer.getId());
                     pstmt.executeUpdate();
                 }
             }
-            
+
             customerSaved = true;
             dispose();
-            
+
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this,
                 "Error while saving customer: " + e.getMessage(),
                 "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-    
+
     public boolean isCustomerSaved() {
         return customerSaved;
     }

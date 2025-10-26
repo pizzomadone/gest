@@ -24,60 +24,60 @@ public class SalesReportPanel extends JPanel {
     private JLabel totalOrdersLabel;
     private JLabel averageOrderLabel;
     private SimpleDateFormat dateFormat;
-    
+
     public SalesReportPanel() {
         dateFormat = new SimpleDateFormat("dd/MM/yyyy");
-        
+
         setupPanel();
         initComponents();
         loadDefaultData();
     }
-    
+
     private void setupPanel() {
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
     }
-    
+
     private void initComponents() {
-        // Panel dei filtri
+        // Filter panel
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         filterPanel.setBorder(BorderFactory.createTitledBorder("Filters"));
-        
+
         // Date fields
         startDateField = new JTextField(10);
         endDateField = new JTextField(10);
-        
-        // IMPOSTA DATE PREDEFINITE (ULTIMO MESE)
+
+        // SET DEFAULT DATES (LAST MONTH)
         Calendar cal = Calendar.getInstance();
         endDateField.setText(dateFormat.format(cal.getTime()));
         cal.add(Calendar.MONTH, -1);
         startDateField.setText(dateFormat.format(cal.getTime()));
-        
+
         startDateField.setToolTipText("Format: dd/MM/yyyy");
         endDateField.setToolTipText("Format: dd/MM/yyyy");
-        
+
         filterPanel.add(new JLabel("Start Date:"));
         filterPanel.add(startDateField);
         filterPanel.add(new JLabel("End Date:"));
         filterPanel.add(endDateField);
-        
+
         JButton filterButton = new JButton("Apply Filters");
         filterButton.addActionListener(e -> loadReportData());
         filterPanel.add(filterButton);
-        
-        // Pannello statistiche
+
+        // Statistics panel
         JPanel statsPanel = new JPanel(new GridLayout(1, 3, 10, 10));
         statsPanel.setBorder(BorderFactory.createTitledBorder("Statistics"));
-        
+
         totalSalesLabel = new JLabel("Total Sales: € 0.00");
         totalOrdersLabel = new JLabel("Number of Orders: 0");
         averageOrderLabel = new JLabel("Average per Order: € 0.00");
-        
+
         statsPanel.add(totalSalesLabel);
         statsPanel.add(totalOrdersLabel);
         statsPanel.add(averageOrderLabel);
-        
-        // Tabella report
+
+        // Report table
         String[] columns = {"Date", "Order ID", "Customer", "Status", "Total €"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
@@ -86,139 +86,139 @@ public class SalesReportPanel extends JPanel {
             }
         };
         reportTable = new JTable(tableModel);
-        
-        // Pannello pulsanti
+
+        // Button panel
         JPanel buttonPanel = new JPanel(new FlowLayout());
         JButton printButton = new JButton("Print Report");
         JButton exportButton = new JButton("Export CSV");
         JButton detailsButton = new JButton("Order Details");
-        
+
         printButton.addActionListener(e -> printReport());
         exportButton.addActionListener(e -> exportToCSV());
         detailsButton.addActionListener(e -> showOrderDetails());
-        
+
         buttonPanel.add(printButton);
         buttonPanel.add(exportButton);
         buttonPanel.add(detailsButton);
-        
-        // Layout principale
+
+        // Main layout
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.add(filterPanel, BorderLayout.NORTH);
         topPanel.add(statsPanel, BorderLayout.CENTER);
-        
+
         add(topPanel, BorderLayout.NORTH);
         add(new JScrollPane(reportTable), BorderLayout.CENTER);
         add(buttonPanel, BorderLayout.SOUTH);
     }
-    
+
     private void loadDefaultData() {
-        // CARICA AUTOMATICAMENTE I DATI CON LE DATE PREDEFINITE
+        // AUTOMATICALLY LOAD DATA WITH DEFAULT DATES
         SwingUtilities.invokeLater(() -> loadReportData());
     }
-    
+
     private void loadReportData() {
         tableModel.setRowCount(0);
         try {
             String startDateText = startDateField.getText().trim();
             String endDateText = endDateField.getText().trim();
-            
+
             Connection conn = DatabaseManager.getInstance().getConnection();
             String query;
             PreparedStatement pstmt = null;
-            
-            // Se le date sono vuote, carica tutto
+
+            // If dates are empty, load everything
             if (startDateText.isEmpty() || endDateText.isEmpty()) {
                 query = """
-                    SELECT o.id, o.data_ordine, o.stato, o.totale,
-                           COALESCE(c.nome || ' ' || c.cognome, 'N/A') as cliente_nome
-                    FROM ordini o
-                    LEFT JOIN clienti c ON o.cliente_id = c.id
-                    ORDER BY o.data_ordine DESC
+                    SELECT o.id, o.order_date, o.status, o.total,
+                           COALESCE(c.first_name || ' ' || c.last_name, 'N/A') as customer_name
+                    FROM orders o
+                    LEFT JOIN customers c ON o.customer_id = c.id
+                    ORDER BY o.order_date DESC
                     LIMIT 1000
                 """;
                 pstmt = conn.prepareStatement(query);
                 System.out.println("Loading all orders (no date filter)");
             } else {
-                // Prova a parsare le date
+                // Try to parse dates
                 Date startDate = null;
                 Date endDate = null;
-                
+
                 try {
                     startDate = DateUtils.parseDate(startDateText, dateFormat);
                     endDate = DateUtils.parseDate(endDateText, dateFormat);
                 } catch (Exception e) {
                     System.err.println("Error parsing dates: " + e.getMessage());
                 }
-                
+
                 if (startDate == null || endDate == null) {
                     JOptionPane.showMessageDialog(this,
                         "Invalid date format. Use dd/MM/yyyy\nLoading all orders instead.",
                         "Warning", JOptionPane.WARNING_MESSAGE);
-                    
-                    // Fallback: carica tutto
+
+                    // Fallback: load everything
                     query = """
-                        SELECT o.id, o.data_ordine, o.stato, o.totale,
-                               COALESCE(c.nome || ' ' || c.cognome, 'N/A') as cliente_nome
-                        FROM ordini o
-                        LEFT JOIN clienti c ON o.cliente_id = c.id
-                        ORDER BY o.data_ordine DESC
+                        SELECT o.id, o.order_date, o.status, o.total,
+                               COALESCE(c.first_name || ' ' || c.last_name, 'N/A') as customer_name
+                        FROM orders o
+                        LEFT JOIN customers c ON o.customer_id = c.id
+                        ORDER BY o.order_date DESC
                         LIMIT 1000
                     """;
                     pstmt = conn.prepareStatement(query);
                 } else {
-                    // FILTRO DATE CON APPROCCIO STRING SEMPLICE
+                    // DATE FILTER WITH SIMPLE STRING APPROACH
                     query = """
-                        SELECT o.id, o.data_ordine, o.stato, o.totale,
-                               COALESCE(c.nome || ' ' || c.cognome, 'N/A') as cliente_nome
-                        FROM ordini o
-                        LEFT JOIN clienti c ON o.cliente_id = c.id
-                        WHERE o.data_ordine >= ? AND o.data_ordine <= ?
-                        ORDER BY o.data_ordine DESC
+                        SELECT o.id, o.order_date, o.status, o.total,
+                               COALESCE(c.first_name || ' ' || c.last_name, 'N/A') as customer_name
+                        FROM orders o
+                        LEFT JOIN customers c ON o.customer_id = c.id
+                        WHERE o.order_date >= ? AND o.order_date <= ?
+                        ORDER BY o.order_date DESC
                     """;
-                    
+
                     pstmt = conn.prepareStatement(query);
-                    
-                    // CONVERTI DATE IN STRINGA ISO PER IL CONFRONTO
+
+                    // CONVERT DATES TO ISO STRING FOR COMPARISON
                     String startDateISO = String.format("%04d-%02d-%02d 00:00:00",
                         startDate.getYear() + 1900, startDate.getMonth() + 1, startDate.getDate());
                     String endDateISO = String.format("%04d-%02d-%02d 23:59:59",
                         endDate.getYear() + 1900, endDate.getMonth() + 1, endDate.getDate());
-                    
+
                     pstmt.setString(1, startDateISO);
                     pstmt.setString(2, endDateISO);
-                    
+
                     System.out.println("Filtering orders from " + startDateISO + " to " + endDateISO);
                 }
             }
-            
+
             try (ResultSet rs = pstmt.executeQuery()) {
                 double totalSales = 0;
                 int totalOrders = 0;
-                
+
                 while (rs.next()) {
                     Vector<Object> row = new Vector<>();
-                    
-                    // PARSING DATA
-                    Date orderDate = DateUtils.parseDate(rs, "data_ordine");
+
+                    // DATE PARSING
+                    Date orderDate = DateUtils.parseDate(rs, "order_date");
                     if (orderDate != null) {
                         row.add(DateUtils.formatDate(orderDate, dateFormat));
                     } else {
                         row.add("N/A");
                     }
-                    
+
                     row.add(rs.getInt("id"));
-                    row.add(rs.getString("cliente_nome"));
-                    row.add(rs.getString("stato"));
-                    double total = rs.getDouble("totale");
+                    row.add(rs.getString("customer_name"));
+                    row.add(rs.getString("status"));
+                    double total = rs.getDouble("total");
                     row.add(String.format("%.2f", total));
-                    
+
                     tableModel.addRow(row);
-                    
+
                     totalSales += total;
                     totalOrders++;
                 }
-                
-                // Aggiorna statistiche
+
+                // Update statistics
                 totalSalesLabel.setText(String.format("Total Sales: € %.2f", totalSales));
                 totalOrdersLabel.setText("Number of Orders: " + totalOrders);
                 if (totalOrders > 0) {
@@ -226,12 +226,12 @@ public class SalesReportPanel extends JPanel {
                 } else {
                     averageOrderLabel.setText("Average per Order: € 0.00");
                 }
-                
+
                 System.out.println("Loaded " + totalOrders + " orders, total sales: €" + totalSales);
             }
-            
+
             if (pstmt != null) pstmt.close();
-            
+
         } catch (Exception e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this,
@@ -239,50 +239,50 @@ public class SalesReportPanel extends JPanel {
                 "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-    
+
     private void showOrderDetails() {
         int selectedRow = reportTable.getSelectedRow();
         if (selectedRow != -1) {
             int orderId = (int)tableModel.getValueAt(selectedRow, 1);
-            
-            // Crea una finestra di dettaglio
+
+            // Create detail window
             Window parentWindow = SwingUtilities.getWindowAncestor(this);
-            
+
             JDialog detailDialog;
             if (parentWindow instanceof JFrame) {
                 detailDialog = new JDialog((JFrame) parentWindow, "Order Details #" + orderId, true);
             } else {
                 detailDialog = new JDialog((JDialog) parentWindow, "Order Details #" + orderId, true);
             }
-            
+
             detailDialog.setSize(600, 400);
             detailDialog.setLocationRelativeTo(this);
             detailDialog.setLayout(new BorderLayout(10, 10));
-            
-            // Tabella dettagli
+
+            // Details table
             String[] columns = {"Product", "Quantity", "Unit Price", "Total"};
             DefaultTableModel detailModel = new DefaultTableModel(columns, 0);
             JTable detailTable = new JTable(detailModel);
-            
+
             try {
                 Connection conn = DatabaseManager.getInstance().getConnection();
                 String query = """
-                    SELECT COALESCE(p.nome, 'Product N/A') as prodotto_nome, 
-                           d.quantita, d.prezzo_unitario,
-                           (d.quantita * d.prezzo_unitario) as totale
-                    FROM dettagli_ordine d
-                    LEFT JOIN prodotti p ON d.prodotto_id = p.id
-                    WHERE d.ordine_id = ?
+                    SELECT COALESCE(p.name, 'Product N/A') as product_name,
+                           d.quantity, d.unit_price,
+                           (d.quantity * d.unit_price) as total
+                    FROM order_details d
+                    LEFT JOIN products p ON d.product_id = p.id
+                    WHERE d.order_id = ?
                 """;
                 try (PreparedStatement pstmt = conn.prepareStatement(query)) {
                     pstmt.setInt(1, orderId);
                     try (ResultSet rs = pstmt.executeQuery()) {
                         while (rs.next()) {
                             Vector<Object> row = new Vector<>();
-                            row.add(rs.getString("prodotto_nome"));
-                            row.add(rs.getInt("quantita"));
-                            row.add(String.format("%.2f", rs.getDouble("prezzo_unitario")));
-                            row.add(String.format("%.2f", rs.getDouble("totale")));
+                            row.add(rs.getString("product_name"));
+                            row.add(rs.getInt("quantity"));
+                            row.add(String.format("%.2f", rs.getDouble("unit_price")));
+                            row.add(String.format("%.2f", rs.getDouble("total")));
                             detailModel.addRow(row);
                         }
                     }
@@ -302,21 +302,21 @@ public class SalesReportPanel extends JPanel {
             detailDialog.setVisible(true);
         }
     }
-    
+
     private void printReport() {
-        // Crea una nuova finestra per l'anteprima di stampa
+        // Create a new window for print preview
         Window parentWindow = SwingUtilities.getWindowAncestor(this);
-        
+
         JDialog previewDialog;
         if (parentWindow instanceof JFrame) {
             previewDialog = new JDialog((JFrame) parentWindow, "Print Preview - Sales Report", true);
         } else {
             previewDialog = new JDialog((JDialog) parentWindow, "Print Preview - Sales Report", true);
         }
-        
+
         previewDialog.setSize(800, 600);
         previewDialog.setLocationRelativeTo(this);
-        
+
         JPanel previewPanel = new JPanel(new BorderLayout());
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -325,16 +325,16 @@ public class SalesReportPanel extends JPanel {
         titleLabel.setFont(new Font("Serif", Font.BOLD, 18));
         titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
         headerPanel.add(titleLabel, BorderLayout.NORTH);
-        
+
         JLabel dateRangeLabel = new JLabel(String.format("From: %s to: %s", startDateField.getText(), endDateField.getText()));
         dateRangeLabel.setHorizontalAlignment(SwingConstants.CENTER);
         headerPanel.add(dateRangeLabel, BorderLayout.CENTER);
-        
+
         JTable previewTable = new JTable(tableModel);
-        
+
         previewPanel.add(headerPanel, BorderLayout.NORTH);
         previewPanel.add(new JScrollPane(previewTable), BorderLayout.CENTER);
-        
+
         JPanel printButtonPanel = new JPanel();
         JButton printButton = new JButton("Print");
         printButton.addActionListener(e -> {
@@ -346,36 +346,36 @@ public class SalesReportPanel extends JPanel {
         });
         JButton closeButton = new JButton("Close");
         closeButton.addActionListener(e -> previewDialog.dispose());
-        
+
         printButtonPanel.add(printButton);
         printButtonPanel.add(closeButton);
         previewDialog.add(previewPanel, BorderLayout.CENTER);
         previewDialog.add(printButtonPanel, BorderLayout.SOUTH);
-        
+
         previewDialog.setVisible(true);
     }
-    
+
     private void exportToCSV() {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Export Report to CSV");
         fileChooser.setFileFilter(new FileNameExtensionFilter("CSV files (*.csv)", "csv"));
-        
+
         int userSelection = fileChooser.showSaveDialog(this);
         if (userSelection == JFileChooser.APPROVE_OPTION) {
             File fileToSave = fileChooser.getSelectedFile();
             if (!fileToSave.getAbsolutePath().endsWith(".csv")) {
                 fileToSave = new File(fileToSave + ".csv");
             }
-            
+
             try (PrintWriter writer = new PrintWriter(new FileWriter(fileToSave))) {
-                // Intestazione colonne
+                // Column headers
                 for (int i = 0; i < tableModel.getColumnCount(); i++) {
                     if (i > 0) writer.print(",");
                     writer.print(tableModel.getColumnName(i));
                 }
                 writer.println();
-                
-                // Dati tabella
+
+                // Table data
                 for (int i = 0; i < tableModel.getRowCount(); i++) {
                     StringBuilder line = new StringBuilder();
                     for (int j = 0; j < tableModel.getColumnCount(); j++) {
@@ -388,17 +388,17 @@ public class SalesReportPanel extends JPanel {
                     }
                     writer.println(line);
                 }
-                
+
                 writer.println();
                 writer.println("Summary");
                 writer.println("Total Sales," + totalSalesLabel.getText().replace("Total Sales: ", ""));
                 writer.println("Number of Orders," + totalOrdersLabel.getText().replace("Number of Orders: ", ""));
                 writer.println("Average per Order," + averageOrderLabel.getText().replace("Average per Order: ", ""));
-                
+
                 JOptionPane.showMessageDialog(this,
                     "Report exported successfully",
                     "Export complete", JOptionPane.INFORMATION_MESSAGE);
-                    
+
             } catch (IOException e) {
                 e.printStackTrace();
                 JOptionPane.showMessageDialog(this,
