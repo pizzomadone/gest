@@ -140,14 +140,14 @@ public class MinimumStockDialog extends JDialog {
     private void loadSuppliers() {
         try {
             Connection conn = DatabaseManager.getInstance().getConnection();
-            String query = "SELECT id, name FROM suppliers ORDER BY name";
+            String query = "SELECT id, company_name FROM suppliers ORDER BY company_name";
 
             try (Statement stmt = conn.createStatement();
                  ResultSet rs = stmt.executeQuery(query)) {
                 while (rs.next()) {
                     supplierCombo.addItem(new SupplierComboItem(
                         rs.getInt("id"),
-                        rs.getString("name")
+                        rs.getString("company_name")
                     ));
                 }
             }
