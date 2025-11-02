@@ -206,7 +206,7 @@ public class ProductSelectionDialog extends JDialog {
         infoPanel.add(new JLabel("VAT Rate %:"), gbc);
 
         gbc.gridx = 4;
-        vatRateField = new JTextField("22.0");
+        vatRateField = new JTextField(String.valueOf(SettingsPanel.getDefaultVatRate()));
         vatRateField.setPreferredSize(new Dimension(100, 25)); // Increased width
         vatRateField.setHorizontalAlignment(JTextField.CENTER);
         vatRateField.setBorder(BorderFactory.createCompoundBorder(
@@ -359,11 +359,35 @@ public class ProductSelectionDialog extends JDialog {
     private void updateProductDetails() {
         int selectedRow = productsTable.getSelectedRow();
         if (selectedRow != -1) {
+            int productId = (int)tableModel.getValueAt(selectedRow, 0);
             String code = (String)tableModel.getValueAt(selectedRow, 1);
             String name = (String)tableModel.getValueAt(selectedRow, 2);
             String priceStr = (String)tableModel.getValueAt(selectedRow, 4);
             int stock = (int)tableModel.getValueAt(selectedRow, 5);
             String status = (String)tableModel.getValueAt(selectedRow, 6);
+
+            // Load product VAT rate from database
+            try {
+                Connection conn = DatabaseManager.getInstance().getConnection();
+                String query = "SELECT vat_rate FROM products WHERE id = ?";
+                try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                    pstmt.setInt(1, productId);
+                    try (ResultSet rs = pstmt.executeQuery()) {
+                        if (rs.next()) {
+                            double productVatRate = rs.getDouble("vat_rate");
+                            // Use product VAT if set (> 0), otherwise use default
+                            if (productVatRate > 0) {
+                                vatRateField.setText(String.format("%.1f", productVatRate));
+                            } else {
+                                vatRateField.setText(String.valueOf(SettingsPanel.getDefaultVatRate()));
+                            }
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                // If error loading VAT, use default
+                vatRateField.setText(String.valueOf(SettingsPanel.getDefaultVatRate()));
+            }
 
             // Update note with detailed and better formatted information
             if (noteLabel != null) {

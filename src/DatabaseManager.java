@@ -77,6 +77,8 @@ public class DatabaseManager {
                 acquisition_cost REAL DEFAULT 0.0,
                 active INTEGER DEFAULT 1,
                 supplier_id INTEGER,
+                warehouse_position TEXT DEFAULT '',
+                vat_rate REAL DEFAULT 0.0,
                 FOREIGN KEY (supplier_id) REFERENCES suppliers (id)
             )
         """;
@@ -308,6 +310,9 @@ public class DatabaseManager {
         // Migrate existing databases to add reserved_quantity column
         migrateStockReservationData();
 
+        // Migrate existing databases to add warehouse_position and vat_rate columns
+        migrateWarehousePositionAndVat();
+
         // Create triggers for stock reservation synchronization
         createStockReservationTriggers();
     }
@@ -407,6 +412,38 @@ public class DatabaseManager {
                 System.out.println("Adding reserved_quantity column to products table...");
                 stmt.execute("ALTER TABLE products ADD COLUMN reserved_quantity INTEGER DEFAULT 0");
                 System.out.println("Column reserved_quantity added successfully!");
+            }
+        }
+    }
+
+    private void migrateWarehousePositionAndVat() throws SQLException {
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery("PRAGMA table_info(products)")) {
+
+            boolean hasWarehousePosition = false;
+            boolean hasVatRate = false;
+
+            while (rs.next()) {
+                String columnName = rs.getString("name");
+                if ("warehouse_position".equals(columnName)) {
+                    hasWarehousePosition = true;
+                } else if ("vat_rate".equals(columnName)) {
+                    hasVatRate = true;
+                }
+            }
+
+            // Add warehouse_position column if it doesn't exist
+            if (!hasWarehousePosition) {
+                System.out.println("Adding warehouse_position column to products table...");
+                stmt.execute("ALTER TABLE products ADD COLUMN warehouse_position TEXT DEFAULT ''");
+                System.out.println("Column warehouse_position added successfully!");
+            }
+
+            // Add vat_rate column if it doesn't exist
+            if (!hasVatRate) {
+                System.out.println("Adding vat_rate column to products table...");
+                stmt.execute("ALTER TABLE products ADD COLUMN vat_rate REAL DEFAULT 0.0");
+                System.out.println("Column vat_rate added successfully!");
             }
         }
     }
