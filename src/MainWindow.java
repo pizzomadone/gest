@@ -9,7 +9,25 @@ public class MainWindow extends JFrame {
     private JPanel mainPanel;
     private JToolBar toolBar;
     private JMenuBar menuBar;
-    
+
+    // Toolbar buttons
+    private JButton homeButton;
+    private JButton customersButton;
+    private JButton productsButton;
+    private JButton ordersButton;
+    private JButton invoicesButton;
+    private JButton suppliersButton;
+    private JButton warehouseButton;
+    private JButton salesReportButton;
+    private JButton statsButton;
+    private JButton warehouseReportButton;
+    private JButton backupButton;
+    private JButton settingsButton;
+
+    // Active button tracking
+    private JButton activeButton = null;
+    private Color activeButtonColor = new Color(200, 220, 240); // Light blue/gray
+
     // Panel instances
     private CustomersPanel customersPanel;
     private ProductsPanel productsPanel;
@@ -227,66 +245,69 @@ public class MainWindow extends JFrame {
         toolBar = new JToolBar();
         toolBar.setFloatable(false);
         toolBar.setRollover(true);
-        
+
         // Home button
-        JButton homeButton = createToolBarButton("🏠", "Home", "Go to Dashboard");
+        homeButton = createToolBarButton("🏠", "Home", "Go to Dashboard");
         homeButton.addActionListener(e -> showPanel("HOME"));
         toolBar.add(homeButton);
-        
+
         toolBar.addSeparator();
-        
+
         // Management buttons
-        JButton customersButton = createToolBarButton("👥", "Customers", "Customer Management");
+        customersButton = createToolBarButton("👥", "Customers", "Customer Management");
         customersButton.addActionListener(e -> showPanel("CUSTOMERS"));
         toolBar.add(customersButton);
-        
-        JButton productsButton = createToolBarButton("📦", "Products", "Product Management");
+
+        productsButton = createToolBarButton("📦", "Products", "Product Management");
         productsButton.addActionListener(e -> showPanel("PRODUCTS"));
         toolBar.add(productsButton);
-        
-        JButton ordersButton = createToolBarButton("📝", "Orders", "Order Management");
+
+        ordersButton = createToolBarButton("📝", "Orders", "Order Management");
         ordersButton.addActionListener(e -> showPanel("ORDERS"));
         toolBar.add(ordersButton);
-        
-        JButton invoicesButton = createToolBarButton("📋", "Invoices", "Invoice Management");
+
+        invoicesButton = createToolBarButton("📋", "Invoices", "Invoice Management");
         invoicesButton.addActionListener(e -> showPanel("INVOICES"));
         toolBar.add(invoicesButton);
-        
-        JButton suppliersButton = createToolBarButton("🏭", "Suppliers", "Supplier Management");
+
+        suppliersButton = createToolBarButton("🏭", "Suppliers", "Supplier Management");
         suppliersButton.addActionListener(e -> showPanel("SUPPLIERS"));
         toolBar.add(suppliersButton);
-        
-        JButton warehouseButton = createToolBarButton("🏪", "Warehouse", "Warehouse Management");
+
+        warehouseButton = createToolBarButton("🏪", "Warehouse", "Warehouse Management");
         warehouseButton.addActionListener(e -> showPanel("WAREHOUSE"));
         toolBar.add(warehouseButton);
-        
+
         toolBar.addSeparator();
-        
+
         // Reports buttons
-        JButton salesReportButton = createToolBarButton("📊", "Sales Report", "Sales Analysis");
+        salesReportButton = createToolBarButton("📊", "Sales Report", "Sales Analysis");
         salesReportButton.addActionListener(e -> showPanel("SALES_REPORT"));
         toolBar.add(salesReportButton);
-        
-        JButton statsButton = createToolBarButton("📈", "Statistics", "Advanced Statistics");
+
+        statsButton = createToolBarButton("📈", "Statistics", "Advanced Statistics");
         statsButton.addActionListener(e -> showPanel("ADVANCED_STATS"));
         toolBar.add(statsButton);
-        
-        JButton warehouseReportButton = createToolBarButton("📋", "Warehouse Report", "Warehouse Analysis");
+
+        warehouseReportButton = createToolBarButton("📋", "Warehouse Report", "Warehouse Analysis");
         warehouseReportButton.addActionListener(e -> showPanel("WAREHOUSE_REPORT"));
         toolBar.add(warehouseReportButton);
-        
+
         toolBar.addSeparator();
-        
+
         // Tools buttons
-        JButton backupButton = createToolBarButton("💾", "Backup", "Backup Management");
+        backupButton = createToolBarButton("💾", "Backup", "Backup Management");
         backupButton.addActionListener(e -> showPanel("BACKUP"));
         toolBar.add(backupButton);
-        
-        JButton settingsButton = createToolBarButton("⚙️", "Settings", "Application Settings");
+
+        settingsButton = createToolBarButton("⚙️", "Settings", "Application Settings");
         settingsButton.addActionListener(e -> openSettings());
         toolBar.add(settingsButton);
-        
+
         add(toolBar, BorderLayout.NORTH);
+
+        // Set home button as active by default
+        setActiveButton(homeButton);
     }
     
     private JButton createToolBarButton(String icon, String text, String tooltip) {
@@ -312,22 +333,66 @@ public class MainWindow extends JFrame {
         button.setBorderPainted(false);
         button.setContentAreaFilled(false);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        
-        // Hover effects
+        button.setOpaque(true);
+
+        // Hover effects - only apply if not active button
         button.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseEntered(java.awt.event.MouseEvent evt) {
-                button.setContentAreaFilled(true);
-                button.setBackground(new Color(230, 230, 230));
+                if (button != activeButton) {
+                    button.setContentAreaFilled(true);
+                    button.setBackground(new Color(230, 230, 230));
+                }
             }
-            
+
             @Override
             public void mouseExited(java.awt.event.MouseEvent evt) {
-                button.setContentAreaFilled(false);
+                if (button != activeButton) {
+                    button.setContentAreaFilled(false);
+                }
             }
         });
-        
+
         return button;
+    }
+
+    /**
+     * Sets the active button in the toolbar and removes active state from previous button
+     */
+    private void setActiveButton(JButton button) {
+        // Remove active state from previous button
+        if (activeButton != null) {
+            activeButton.setContentAreaFilled(false);
+            activeButton.setBackground(null);
+        }
+
+        // Set new active button
+        activeButton = button;
+        if (activeButton != null) {
+            activeButton.setContentAreaFilled(true);
+            activeButton.setBackground(activeButtonColor);
+        }
+    }
+
+    /**
+     * Get the button associated with a panel name
+     */
+    private JButton getButtonForPanel(String panelName) {
+        return switch (panelName) {
+            case "HOME" -> homeButton;
+            case "CUSTOMERS" -> customersButton;
+            case "PRODUCTS" -> productsButton;
+            case "ORDERS" -> ordersButton;
+            case "INVOICES" -> invoicesButton;
+            case "SUPPLIERS" -> suppliersButton;
+            case "WAREHOUSE" -> warehouseButton;
+            case "SALES_REPORT" -> salesReportButton;
+            case "ADVANCED_STATS" -> statsButton;
+            case "WAREHOUSE_REPORT" -> warehouseReportButton;
+            case "BACKUP" -> backupButton;
+            case "SETTINGS" -> settingsButton;
+            default -> null;
+        };
     }
     
     private void setupMainPanel() {
@@ -523,14 +588,20 @@ public class MainWindow extends JFrame {
             if (!isPanelCreated(panelName)) {
                 createPanel(panelName);
             }
-            
+
             // Switch to the panel
             cardLayout.show(mainPanel, panelName);
             currentPanel = panelName;
-            
+
             // Update window title
             updateWindowTitle(panelName);
-            
+
+            // Update active button
+            JButton button = getButtonForPanel(panelName);
+            if (button != null) {
+                setActiveButton(button);
+            }
+
         } catch (Exception e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this,
