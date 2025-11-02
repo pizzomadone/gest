@@ -231,20 +231,27 @@ public class ProductsPanel extends JPanel {
                             Integer supplierId = rs.getObject("supplier_id", Integer.class);
                             String supplierName = rs.getString("supplier_name");
 
+                            // Handle potentially NULL integer fields with defaults
+                            int quantity = rs.getObject("quantity") != null ? rs.getInt("quantity") : 0;
+                            int minimumQuantity = rs.getObject("minimum_quantity") != null ? rs.getInt("minimum_quantity") : 0;
+                            int active = rs.getObject("active") != null ? rs.getInt("active") : 1;
+                            double acquisitionCost = rs.getObject("acquisition_cost") != null ? rs.getDouble("acquisition_cost") : 0.0;
+                            double weight = rs.getObject("weight") != null ? rs.getDouble("weight") : 0.0;
+
                             Product product = new Product(
                                 rs.getInt("id"),
                                 rs.getString("code"),
                                 rs.getString("name"),
                                 rs.getString("description"),
                                 rs.getDouble("price"),
-                                rs.getInt("quantity"),
-                                rs.getString("category"),
-                                rs.getString("alternative_sku"),
-                                rs.getDouble("weight"),
-                                rs.getString("unit_of_measure"),
-                                rs.getInt("minimum_quantity"),
-                                rs.getDouble("acquisition_cost"),
-                                rs.getInt("active") == 1,
+                                quantity,
+                                rs.getString("category") != null ? rs.getString("category") : "",
+                                rs.getString("alternative_sku") != null ? rs.getString("alternative_sku") : "",
+                                weight,
+                                rs.getString("unit_of_measure") != null ? rs.getString("unit_of_measure") : "pcs",
+                                minimumQuantity,
+                                acquisitionCost,
+                                active == 1,
                                 supplierId,
                                 supplierName != null ? supplierName : ""
                             );
