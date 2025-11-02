@@ -39,7 +39,7 @@ public class ProductsPanel extends JPanel {
         searchPanel.add(searchButton);
         
         // Products table
-        String[] columns = {"ID", "Code", "Name", "Description", "Price", "Physical", "Reserved", "Available", "Category", "Unit", "Min Qty", "Active", "Supplier"};
+        String[] columns = {"ID", "Code", "Name", "Description", "Price", "Physical", "Reserved", "Available", "Category", "Unit", "Min Qty", "Active", "Supplier", "Warehouse Pos", "VAT %"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -127,6 +127,8 @@ public class ProductsPanel extends JPanel {
                     row.add(rs.getInt("minimum_quantity"));
                     row.add(rs.getInt("active") == 1 ? "Yes" : "No");
                     row.add(rs.getString("supplier_name") != null ? rs.getString("supplier_name") : "");
+                    row.add(rs.getString("warehouse_position") != null ? rs.getString("warehouse_position") : "");
+                    row.add(rs.getDouble("vat_rate"));
                     tableModel.addRow(row);
                 }
             }
@@ -183,6 +185,8 @@ public class ProductsPanel extends JPanel {
                         row.add(rs.getInt("minimum_quantity"));
                         row.add(rs.getInt("active") == 1 ? "Yes" : "No");
                         row.add(rs.getString("supplier_name") != null ? rs.getString("supplier_name") : "");
+                        row.add(rs.getString("warehouse_position") != null ? rs.getString("warehouse_position") : "");
+                        row.add(rs.getDouble("vat_rate"));
                         tableModel.addRow(row);
                     }
                 }

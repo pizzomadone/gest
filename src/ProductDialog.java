@@ -301,10 +301,10 @@ public class ProductDialog extends JDialog {
 
     private void updateSupplierButton() {
         if (selectedSupplier != null) {
-            String buttonText = selectedSupplier.getRagioneSociale();
+            String buttonText = selectedSupplier.getCompanyName();
 
-            if (selectedSupplier.getPartitaIva() != null && !selectedSupplier.getPartitaIva().isEmpty()) {
-                buttonText += " (P.IVA: " + selectedSupplier.getPartitaIva() + ")";
+            if (selectedSupplier.getVatNumber() != null && !selectedSupplier.getVatNumber().isEmpty()) {
+                buttonText += " (VAT: " + selectedSupplier.getVatNumber() + ")";
             }
 
             selectSupplierButton.setText(buttonText);
