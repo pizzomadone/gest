@@ -192,7 +192,7 @@ public class WarehousePanel extends JPanel {
                         s.company_name as supplier_name
                 FROM products p
                 LEFT JOIN minimum_stock sm ON p.id = sm.product_id
-                LEFT JOIN suppliers s ON sm.preferred_supplier = s.id
+                LEFT JOIN suppliers s ON sm.preferred_supplier_id = s.id
                 ORDER BY p.name
             """;
 
@@ -605,11 +605,11 @@ public class WarehousePanel extends JPanel {
         Connection conn = DatabaseManager.getInstance().getConnection();
         String query = """
             SELECT p.id, p.name, sm.minimum_quantity, sm.reorder_quantity,
-                    sm.lead_time_days, sm.preferred_supplier,
+                    sm.lead_time_days, sm.preferred_supplier_id,
                     s.company_name as supplier_name, sm.notes
             FROM products p
             LEFT JOIN minimum_stock sm ON p.id = sm.product_id
-            LEFT JOIN suppliers s ON sm.preferred_supplier = s.id
+            LEFT JOIN suppliers s ON sm.preferred_supplier_id = s.id
             WHERE p.code = ?
         """;
 
@@ -623,8 +623,8 @@ public class WarehousePanel extends JPanel {
                         rs.getInt("minimum_quantity"),
                         rs.getInt("reorder_quantity"),
                         rs.getInt("lead_time_days"),
-                        rs.getObject("preferred_supplier") != null ?
-                            rs.getInt("preferred_supplier") : null,
+                        rs.getObject("preferred_supplier_id") != null ?
+                            rs.getInt("preferred_supplier_id") : null,
                         rs.getString("supplier_name"),
                         rs.getString("notes")
                     );
