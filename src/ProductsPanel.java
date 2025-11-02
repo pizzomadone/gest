@@ -228,15 +228,15 @@ public class ProductsPanel extends JPanel {
                     pstmt.setInt(1, productId);
                     try (ResultSet rs = pstmt.executeQuery()) {
                         if (rs.next()) {
-                            Integer supplierId = rs.getObject("supplier_id", Integer.class);
+                            // Safely read integer and double fields with proper type handling
+                            Integer supplierId = getIntegerFromResultSet(rs, "supplier_id");
                             String supplierName = rs.getString("supplier_name");
 
-                            // Handle potentially NULL integer fields with defaults
-                            int quantity = rs.getObject("quantity") != null ? rs.getInt("quantity") : 0;
-                            int minimumQuantity = rs.getObject("minimum_quantity") != null ? rs.getInt("minimum_quantity") : 0;
-                            int active = rs.getObject("active") != null ? rs.getInt("active") : 1;
-                            double acquisitionCost = rs.getObject("acquisition_cost") != null ? rs.getDouble("acquisition_cost") : 0.0;
-                            double weight = rs.getObject("weight") != null ? rs.getDouble("weight") : 0.0;
+                            int quantity = getIntegerFromResultSet(rs, "quantity", 0);
+                            int minimumQuantity = getIntegerFromResultSet(rs, "minimum_quantity", 0);
+                            int active = getIntegerFromResultSet(rs, "active", 1);
+                            double acquisitionCost = getDoubleFromResultSet(rs, "acquisition_cost", 0.0);
+                            double weight = getDoubleFromResultSet(rs, "weight", 0.0);
 
                             Product product = new Product(
                                 rs.getInt("id"),
@@ -505,6 +505,56 @@ public class ProductsPanel extends JPanel {
             pstmt.setInt(1, productId);
             ResultSet rs = pstmt.executeQuery();
             return rs.next() && rs.getInt(1) > 0;
+        }
+    }
+
+    // Helper methods to safely read integer and double values from ResultSet
+    private Integer getIntegerFromResultSet(ResultSet rs, String columnName) {
+        try {
+            Object value = rs.getObject(columnName);
+            if (value == null) {
+                return null;
+            }
+            if (value instanceof Number) {
+                return ((Number) value).intValue();
+            }
+            if (value instanceof String) {
+                String strValue = ((String) value).trim();
+                if (strValue.isEmpty()) {
+                    return null;
+                }
+                return Integer.parseInt(strValue);
+            }
+            return null;
+        } catch (SQLException | NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private int getIntegerFromResultSet(ResultSet rs, String columnName, int defaultValue) {
+        Integer value = getIntegerFromResultSet(rs, columnName);
+        return value != null ? value : defaultValue;
+    }
+
+    private double getDoubleFromResultSet(ResultSet rs, String columnName, double defaultValue) {
+        try {
+            Object value = rs.getObject(columnName);
+            if (value == null) {
+                return defaultValue;
+            }
+            if (value instanceof Number) {
+                return ((Number) value).doubleValue();
+            }
+            if (value instanceof String) {
+                String strValue = ((String) value).trim();
+                if (strValue.isEmpty()) {
+                    return defaultValue;
+                }
+                return Double.parseDouble(strValue);
+            }
+            return defaultValue;
+        } catch (SQLException | NumberFormatException e) {
+            return defaultValue;
         }
     }
 }
