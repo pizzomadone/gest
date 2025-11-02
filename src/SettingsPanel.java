@@ -18,6 +18,10 @@ public class SettingsPanel extends JPanel {
     private JTextField pdfDirectoryField;
     private JButton browsePdfButton;
 
+    // Currency and VAT Settings
+    private JComboBox<String> currencyCombo;
+    private JTextField defaultVatField;
+
     // Company Data fields
     private JTextField companyNameField;
     private JTextField vatNumberField;
@@ -153,8 +157,37 @@ public class SettingsPanel extends JPanel {
         pdfDirPanel.add(browsePdfButton, BorderLayout.EAST);
         panel.add(pdfDirPanel, gbc);
 
+        // Currency
+        gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0.0;
+        panel.add(new JLabel("Currency:"), gbc);
+
+        gbc.gridx = 1; gbc.weightx = 1.0;
+        String[] currencies = {"USD - US Dollar ($)", "EUR - Euro (€)", "GBP - British Pound (£)",
+                               "JPY - Japanese Yen (¥)", "CHF - Swiss Franc (Fr)",
+                               "CAD - Canadian Dollar ($)", "AUD - Australian Dollar ($)",
+                               "CNY - Chinese Yuan (¥)", "INR - Indian Rupee (₹)",
+                               "BRL - Brazilian Real (R$)", "MXN - Mexican Peso ($)",
+                               "ZAR - South African Rand (R)", "SEK - Swedish Krona (kr)",
+                               "NOK - Norwegian Krone (kr)", "DKK - Danish Krone (kr)",
+                               "PLN - Polish Zloty (zł)", "RUB - Russian Ruble (₽)",
+                               "TRY - Turkish Lira (₺)", "KRW - South Korean Won (₩)",
+                               "SGD - Singapore Dollar ($)", "HKD - Hong Kong Dollar ($)",
+                               "NZD - New Zealand Dollar ($)", "THB - Thai Baht (฿)"};
+        currencyCombo = new JComboBox<>(currencies);
+        currencyCombo.setSelectedItem(getSetting("currency", "EUR - Euro (€)"));
+        panel.add(currencyCombo, gbc);
+
+        // Default VAT
+        gbc.gridx = 0; gbc.gridy = 4;
+        panel.add(new JLabel("Default VAT Rate (%):"), gbc);
+
+        gbc.gridx = 1;
+        defaultVatField = new JTextField(getSetting("default_vat", "22.0"));
+        defaultVatField.setPreferredSize(new Dimension(200, 25));
+        panel.add(defaultVatField, gbc);
+
         // Add vertical glue to push components to top
-        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2; gbc.weighty = 1.0;
+        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 2; gbc.weighty = 1.0;
         gbc.fill = GridBagConstraints.VERTICAL;
         panel.add(Box.createVerticalGlue(), gbc);
 
@@ -396,6 +429,8 @@ public class SettingsPanel extends JPanel {
         settings.setProperty("auto_backup", String.valueOf(autoBackupCheck.isSelected()));
         settings.setProperty("backup_interval", String.valueOf(backupIntervalSpinner.getValue()));
         settings.setProperty("pdf_default_directory", pdfDirectoryField.getText().trim());
+        settings.setProperty("currency", (String)currencyCombo.getSelectedItem());
+        settings.setProperty("default_vat", defaultVatField.getText().trim());
 
         try (FileOutputStream fos = new FileOutputStream(SETTINGS_FILE)) {
             settings.store(fos, "Application Settings");
@@ -418,6 +453,8 @@ public class SettingsPanel extends JPanel {
         settings.setProperty("auto_backup", "true");
         settings.setProperty("backup_interval", "24");
         settings.setProperty("pdf_default_directory", System.getProperty("user.home"));
+        settings.setProperty("currency", "EUR - Euro (€)");
+        settings.setProperty("default_vat", "22.0");
     }
 
     private void applyCurrentSettings() {
@@ -521,5 +558,29 @@ public class SettingsPanel extends JPanel {
         UIManager.put("Table.font", newFont);
         UIManager.put("Menu.font", newFont);
         UIManager.put("MenuItem.font", newFont);
+    }
+
+    // Utility methods for currency and VAT
+    public static String getCurrency() {
+        return getGlobalSetting("currency", "EUR - Euro (€)");
+    }
+
+    public static String getCurrencySymbol() {
+        String currency = getCurrency();
+        // Extract the symbol from the currency string (e.g., "EUR - Euro (€)" -> "€")
+        int startIdx = currency.indexOf('(');
+        int endIdx = currency.indexOf(')');
+        if (startIdx != -1 && endIdx != -1) {
+            return currency.substring(startIdx + 1, endIdx);
+        }
+        return "€"; // Default
+    }
+
+    public static double getDefaultVatRate() {
+        try {
+            return Double.parseDouble(getGlobalSetting("default_vat", "22.0"));
+        } catch (NumberFormatException e) {
+            return 22.0;
+        }
     }
 }

@@ -20,6 +20,8 @@ public class ProductDialog extends JDialog {
     private JCheckBox activeCheckBox;
     private JButton selectSupplierButton;
     private Supplier selectedSupplier;
+    private JTextField warehousePositionField;
+    private JTextField vatRateField;
 
     private boolean productSaved = false;
     private Product product;
@@ -49,7 +51,7 @@ public class ProductDialog extends JDialog {
     }
     
     private void setupDialog() {
-        setSize(650, 700);
+        setSize(650, 800);
         setLocationRelativeTo(null); // Center on screen instead of parent window
         setLayout(new BorderLayout(10, 10));
     }
@@ -109,7 +111,21 @@ public class ProductDialog extends JDialog {
         formPanel.add(new JLabel("Category:"), gbc);
 
         gbc.gridx = 1;
-        String[] categories = {"", "Electronics", "Furniture", "Clothing", "Food", "Tools", "Office Supplies", "Other"};
+        String[] categories = {"", "Electronics", "Computers & Accessories", "Smartphones & Tablets",
+                               "Furniture", "Office Furniture", "Home Furniture",
+                               "Clothing", "Men's Clothing", "Women's Clothing", "Children's Clothing",
+                               "Food & Beverages", "Fresh Food", "Packaged Food", "Beverages",
+                               "Tools & Hardware", "Power Tools", "Hand Tools", "Hardware",
+                               "Office Supplies", "Stationery", "Paper Products", "Writing Instruments",
+                               "Books & Media", "Books", "Music", "Movies",
+                               "Sports & Outdoors", "Fitness Equipment", "Outdoor Gear",
+                               "Health & Beauty", "Personal Care", "Cosmetics", "Health Products",
+                               "Automotive", "Car Parts", "Car Accessories",
+                               "Home & Garden", "Kitchen", "Bathroom", "Garden",
+                               "Toys & Games", "Toys", "Board Games", "Video Games",
+                               "Pet Supplies", "Pet Food", "Pet Accessories",
+                               "Industrial & Scientific", "Industrial Equipment", "Lab Supplies",
+                               "Other"};
         categoryComboBox = new JComboBox<>(categories);
         categoryComboBox.setEditable(true);
         formPanel.add(categoryComboBox, gbc);
@@ -183,6 +199,23 @@ public class ProductDialog extends JDialog {
         newSupplierButton.addActionListener(e -> createNewSupplier());
         formPanel.add(newSupplierButton, gbc);
 
+        // Warehouse Position
+        gbc.gridx = 0; gbc.gridy = 13;
+        formPanel.add(new JLabel("Warehouse Position:"), gbc);
+
+        gbc.gridx = 1;
+        warehousePositionField = new JTextField(12);
+        formPanel.add(warehousePositionField, gbc);
+
+        // VAT Rate
+        gbc.gridx = 0; gbc.gridy = 14;
+        formPanel.add(new JLabel("VAT Rate (%):"), gbc);
+
+        gbc.gridx = 1;
+        vatRateField = new JTextField(12);
+        vatRateField.setText(String.valueOf(SettingsPanel.getDefaultVatRate()));
+        formPanel.add(vatRateField, gbc);
+
         // Button panel
         JPanel buttonPanel = new JPanel();
         JButton saveButton = new JButton("Save");
@@ -220,6 +253,10 @@ public class ProductDialog extends JDialog {
         if (supplierId != null && supplierId > 0) {
             loadSupplierById(supplierId);
         }
+
+        // Load new fields
+        warehousePositionField.setText(product.getWarehousePosition());
+        vatRateField.setText(String.valueOf(product.getVatRate()));
     }
 
     private void loadSupplierById(Integer supplierId) {
@@ -303,6 +340,8 @@ public class ProductDialog extends JDialog {
             double acquisitionCost = Double.parseDouble(acquisitionCostField.getText().trim());
             boolean active = activeCheckBox.isSelected();
             Integer supplierId = selectedSupplier != null ? selectedSupplier.getId() : null;
+            String warehousePosition = warehousePositionField.getText().trim();
+            double vatRate = Double.parseDouble(vatRateField.getText().trim());
 
             if (code.isEmpty() || name.isEmpty()) {
                 JOptionPane.showMessageDialog(this,
@@ -316,8 +355,8 @@ public class ProductDialog extends JDialog {
                 String query = """
                     INSERT INTO products (code, name, description, price, quantity,
                         category, alternative_sku, weight, unit_of_measure, minimum_quantity,
-                        acquisition_cost, active, supplier_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        acquisition_cost, active, supplier_id, warehouse_position, vat_rate)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
                 try (PreparedStatement pstmt = conn.prepareStatement(query)) {
                     pstmt.setString(1, code);
@@ -337,6 +376,8 @@ public class ProductDialog extends JDialog {
                     } else {
                         pstmt.setNull(13, java.sql.Types.INTEGER);
                     }
+                    pstmt.setString(14, warehousePosition);
+                    pstmt.setDouble(15, vatRate);
                     pstmt.executeUpdate();
                 }
             } else { // Edit product
@@ -344,7 +385,8 @@ public class ProductDialog extends JDialog {
                     UPDATE products
                     SET code = ?, name = ?, description = ?, price = ?, quantity = ?,
                         category = ?, alternative_sku = ?, weight = ?, unit_of_measure = ?,
-                        minimum_quantity = ?, acquisition_cost = ?, active = ?, supplier_id = ?
+                        minimum_quantity = ?, acquisition_cost = ?, active = ?, supplier_id = ?,
+                        warehouse_position = ?, vat_rate = ?
                     WHERE id = ?
                 """;
                 try (PreparedStatement pstmt = conn.prepareStatement(query)) {
@@ -365,7 +407,9 @@ public class ProductDialog extends JDialog {
                     } else {
                         pstmt.setNull(13, java.sql.Types.INTEGER);
                     }
-                    pstmt.setInt(14, product.getId());
+                    pstmt.setString(14, warehousePosition);
+                    pstmt.setDouble(15, vatRate);
+                    pstmt.setInt(16, product.getId());
                     pstmt.executeUpdate();
                 }
             }
@@ -375,7 +419,7 @@ public class ProductDialog extends JDialog {
 
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(this,
-                "Price, Weight, and Acquisition Cost must be valid numbers",
+                "Price, Weight, Acquisition Cost, and VAT Rate must be valid numbers",
                 "Error", JOptionPane.ERROR_MESSAGE);
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this,

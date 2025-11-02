@@ -24,6 +24,10 @@ public class Product {
     private Integer supplierId;
     private String supplierName; // For display purposes
 
+    // Warehouse & Tax
+    private String warehousePosition;
+    private double vatRate;
+
     public Product(int id, String code, String name, String description, double price, int quantity) {
         this.id = id;
         this.code = code;
@@ -40,11 +44,14 @@ public class Product {
         this.active = true;
         this.supplierId = null;
         this.supplierName = "";
+        this.warehousePosition = "";
+        this.vatRate = 0.0;
     }
 
     public Product(int id, String code, String name, String description, double price, int quantity,
                    String category, String alternativeSku, double weight, String unitOfMeasure,
-                   int minimumQuantity, double acquisitionCost, boolean active, Integer supplierId, String supplierName) {
+                   int minimumQuantity, double acquisitionCost, boolean active, Integer supplierId, String supplierName,
+                   String warehousePosition, double vatRate) {
         this.id = id;
         this.code = code;
         this.name = name;
@@ -60,6 +67,8 @@ public class Product {
         this.active = active;
         this.supplierId = supplierId;
         this.supplierName = supplierName;
+        this.warehousePosition = warehousePosition;
+        this.vatRate = vatRate;
     }
 
     // Getters
@@ -78,6 +87,8 @@ public class Product {
     public boolean isActive() { return active; }
     public Integer getSupplierId() { return supplierId; }
     public String getSupplierName() { return supplierName; }
+    public String getWarehousePosition() { return warehousePosition; }
+    public double getVatRate() { return vatRate; }
 
     // Setters
     public void setId(int id) { this.id = id; }
@@ -95,4 +106,6 @@ public class Product {
     public void setActive(boolean active) { this.active = active; }
     public void setSupplierId(Integer supplierId) { this.supplierId = supplierId; }
     public void setSupplierName(String supplierName) { this.supplierName = supplierName; }
+    public void setWarehousePosition(String warehousePosition) { this.warehousePosition = warehousePosition; }
+    public void setVatRate(double vatRate) { this.vatRate = vatRate; }
 }

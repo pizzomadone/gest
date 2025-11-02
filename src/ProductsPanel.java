@@ -237,6 +237,7 @@ public class ProductsPanel extends JPanel {
                             int active = getIntegerFromResultSet(rs, "active", 1);
                             double acquisitionCost = getDoubleFromResultSet(rs, "acquisition_cost", 0.0);
                             double weight = getDoubleFromResultSet(rs, "weight", 0.0);
+                            double vatRate = getDoubleFromResultSet(rs, "vat_rate", 0.0);
 
                             Product product = new Product(
                                 rs.getInt("id"),
@@ -253,7 +254,9 @@ public class ProductsPanel extends JPanel {
                                 acquisitionCost,
                                 active == 1,
                                 supplierId,
-                                supplierName != null ? supplierName : ""
+                                supplierName != null ? supplierName : "",
+                                rs.getString("warehouse_position") != null ? rs.getString("warehouse_position") : "",
+                                vatRate
                             );
                             showProductDialog(product);
                         }
